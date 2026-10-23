@@ -1,6 +1,6 @@
 # 냥코 도감 (NyankoDex)
 
-**👉 [냥코 도감 바로가기](https://crexont.github.io/nyanko-dex/)**
+**👉 [냥코 도감 바로가기](https://crexont.github.io/nyanko-dex/)** · 현재 버전 **v1.0 베타**
 
 냥코대전쟁(한국판)에서 **내가 가진 캐릭터의 진화 단계, 레벨, 본능 상태를 한눈에** 보고 관리하는 웹 도감입니다.
 
