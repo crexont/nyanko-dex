@@ -52,40 +52,8 @@
 | "블루스택이 실행 중입니다" | 블루스택을 트레이 아이콘까지 완전히 종료한 뒤 다시 실행 |
 | "블루스택 5 인스턴스를 찾지 못했습니다" | 블루스택 5가 설치돼 있는지 확인 (블루스택 4 이하는 미지원) |
 | "세이브가 있는 인스턴스가 없습니다" | 블루스택에서 냥코(한국판)를 실행해 계정을 옮긴 뒤 종료하고 재시도 |
-| 백신이 exe를 막음 | PyInstaller로 만든 exe에서 생기는 오탐입니다. 아래 "소스로 실행"을 쓰거나 예외 처리 |
+| 백신이 exe를 막음 | PyInstaller로 만든 exe에서 생기는 오탐입니다. 백신에서 NyankoDex 폴더를 예외로 추가한 뒤 다시 실행 |
 | 새 캐릭이 안 보임 | 게임 업데이트 후 커뮤니티 데이터가 아직 갱신되지 않았을 수 있습니다 |
-
-## 개발자용
-
-### 소스로 실행
-
-Python 3.9 이상과 7-Zip이 필요합니다.
-
-```bat
-update.bat
-```
-
-`update.bat`은 Python을 찾아 `requirements.txt`를 설치한 뒤 `tools/update.py`를 실행합니다. 각 단계를 따로 실행할 수도 있습니다.
-
-| 스크립트 | 역할 |
-|---|---|
-| `tools/extract_vhdx.py` | Data.vhdx → `device/` |
-| `tools/export_save.py [세이브]` | 세이브 → `data/save.json` (`--js app/save.js`로 웹앱 자동 로드용 출력) |
-| `tools/build_gamedata.py --version 15.6.0` | 게임 데이터 + 아이콘 → `app/gamedata.js`, `app/icons/` |
-| `tools/package.py --version v0.1.0` | 배포용 zip 빌드 (PyInstaller 필요) |
-
-### 릴리즈
-
-`v`로 시작하는 태그를 푸시하면 GitHub Actions(`.github/workflows/release.yml`)가 Windows에서 exe를 빌드해 Releases에 zip을 올립니다.
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-### 저장소에 올리지 않는 것
-
-개인 세이브(`device/`, `data/`, `app/save.js`)와 게임 리소스(`app/gamedata.js`, `app/icons/`)는 `.gitignore`로 제외합니다. 게임 리소스는 각자 PC에서 생성되며 저장소나 릴리즈에 포함하지 않습니다.
 
 ## 라이선스
 
