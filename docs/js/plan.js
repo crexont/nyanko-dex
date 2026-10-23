@@ -1,7 +1,7 @@
 // 육성 — 보유 재화·재료 + 진화 육성 계획 (필요 재료 합계·부족분)
 import { GD, BYID, FORM, esc, icon, store, view, itemName, have, haveXp, toast, orbInfo, ORB_GRADE } from "./common.js";
 
-const CURRENCY = [["xp", "경험치"], ["np", "NP"], ["catfood", "캣푸드"], ["normalTickets", "냥코 티켓"],
+const CURRENCY = [["xp", "경험치"], ["np", "NP"], ["catfood", "통조림"], ["normalTickets", "냥코 티켓"],
                   ["rareTickets", "레어 티켓"], ["platinumTickets", "플래티넘 티켓"], ["legendTickets", "레전드 티켓"]];
 const STEP = { tf: "3진", ff: "4진" };
 

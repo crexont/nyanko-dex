@@ -166,7 +166,7 @@ function renderHeader() {
     stat("본능 미해방", tn, tn > 0),
     inv && stat("경험치", (cur.xp ?? 0).toLocaleString()),
     inv && stat("NP", (cur.np ?? 0).toLocaleString()),
-    stat("캣푸드", Number(cur.catfood ?? m.catfood ?? 0).toLocaleString()),
+    stat("통조림", Number(cur.catfood ?? m.catfood ?? 0).toLocaleString()),
     `<a class="stat link" href="#/plan"><small>${inv ? "보유 재료 · 육성 계획" : "재화·재료 입력"}</small><b>열기 →</b></a>`,
   ].filter(Boolean).join("");
 }

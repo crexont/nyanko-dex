@@ -65,7 +65,7 @@ def main(argv: list[str] | None = None) -> None:
     forms = [sum(1 for c in cats if c["form"] == i) for i in range(4)]
     print(f"{out['source']} (v{out['gameVersion']}) → {args.out}")
     print(f"보유 {len(cats)}마리 (1진 {forms[0]} / 2진 {forms[1]} / 3진 {forms[2]} / 4진 {forms[3]}), "
-          f"캣푸드 {s.catfood}, XP {s.xp}")
+          f"통조림 {s.catfood}, XP {s.xp}")
 
 
 if __name__ == "__main__":
