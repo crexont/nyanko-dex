@@ -8,12 +8,12 @@ const loadUnits = () => unitsPromise ??= fetch("data/units.json").then(r => {
   return r.json();
 });
 
-const state = { id: null, form: null, level: null, plus: null };
+const state = { id: null, form: null, level: null, plus: null, tal: null };
 
 export function renderCat(root, id) {
   const c = BYID.get(id);
   if (!c) { root.innerHTML = `<div class="empty">캐릭터를 찾을 수 없어요. <a href="#/cats">캐릭터 목록으로</a></div>`; return; }
-  if (state.id !== id) Object.assign(state, { id, form: null, level: null, plus: null });
+  if (state.id !== id) Object.assign(state, { id, form: null, level: null, plus: null, tal: null });
   root.innerHTML = `<div class="empty">불러오는 중…</div>`;
   const draw = () => loadUnits().then(units => paint(root, c, units[id]))
     .catch(() => { root.innerHTML = `<div class="empty">캐릭터 데이터를 불러오지 못했어요. 새로고침해 주세요.</div>`; });
@@ -73,8 +73,78 @@ function abilityText(a, traits) {
     case "metalKiller": return `메탈 킬러 (현재 체력의 ${v}%)`;
     case "explosion": return `폭파 공격 (${v}%)`;
     case "conjure": return "소환";
-    default: return k;
+    case "soul": return "영혼 공격";
+    case "counterSurge": return "열파 카운터";
+    case "immWarp": return "워프 무효";
+    case "immCurse": return "고대의 저주 무효";
+    case "immToxic": return "독 데미지 무효";
+    case "immSurge": return "열파 데미지 무효";
+    case "immBlast": return "폭파 데미지 무효";
+    default:
+      if (k.startsWith("res:")) return `${k.slice(4)} 내성 (${v}% 감소)`;
+      return k;
   }
+}
+
+// ---- 본능 효과 ----
+// 계산 방식은 BCU(오픈소스 시뮬레이터)의 PCoin과 같다:
+// 레벨 L 값 = (최대-최소)×(L-1)/(최대레벨-1) + 최소 (정수 버림), 최대 레벨이 1 이하면 최대값.
+function talentMods(vals, lv) {
+  const maxLv = Math.max(vals[0], 1), m = [];
+  for (let j = 0; j < 4; j++) {
+    const v0 = vals[1 + j * 2], v1 = vals[2 + j * 2];
+    m.push(maxLv > 1 ? Math.trunc((v1 - v0) * (lv - 1) / (maxLv - 1)) + v0 : v1);
+  }
+  return m;
+}
+const TAL_TRAIT = { 33: "빨강", 34: "떠있음", 35: "검정", 36: "메탈", 37: "천사", 38: "에이리언", 39: "좀비", 40: "고대종", 41: "무속성", 57: "악마" };
+const TAL_FLAG = { 4: "only", 5: "strong", 6: "resist", 7: "massive", 12: "base", 14: "zombie", 16: "money", 23: "waveBlock",
+                   59: "soul", 63: "colossus", 66: "sage", 68: "counterSurge",
+                   44: "immWeaken", 45: "immFreeze", 46: "immSlow", 47: "immKb", 48: "immWave", 49: "immWarp",
+                   29: "immCurse", 53: "immToxic", 55: "immSurge", 69: "immBlast" };
+const TAL_RES = { 18: "공격력 다운", 19: "움직임을 멈춘다", 20: "움직임을 느리게 한다", 21: "날려버린다", 22: "파동 데미지",
+                  24: "워프", 30: "고대의 저주", 52: "독 데미지", 54: "열파 데미지" };
+// 확률형 능력: [능력 키, 새로 생길 때의 값]. 원래 있던 능력이면 각 값에 더한다 (열파류는 덮어씀).
+const TAL_PROC = {
+  1: ["weaken", m => [m[0], m[1], 100 - m[2]]], 2: ["freeze", m => [m[0], m[1]]], 3: ["slow", m => [m[0], m[1]]],
+  8: ["kb", m => [m[0]]], 10: ["strengthen", m => [100 - m[0], m[1]]], 11: ["survive", m => [m[0]]],
+  13: ["crit", m => [m[0]]], 15: ["barrier", m => [m[0]]], 17: ["wave", m => [m[0], m[1]]],
+  50: ["savage", m => [m[0], m[1]]], 51: ["dodge", m => [m[0], m[1]]], 56: ["surge", m => [m[0], 0, 0, m[1]]],
+  58: ["shield", m => [m[0]]], 60: ["curse", m => [m[0], m[1]]], 62: ["miniWave", m => [m[0], m[1]]],
+  64: ["behemoth", m => [1, m[0], m[1]]], 65: ["miniSurge", m => [m[0], 0, 0, m[1]]], 67: ["explosion", m => [m[0], m[1]]],
+};
+
+function applyTalents(c, u, s, levels) {
+  const out = { hp: 0, atk: 0, speed: 0, kb: 0, cost: 0, cd: 0, tba: 0, traits: [], ab: s.ab.map(a => [...a]), touched: new Set() };
+  for (const t of c.talents) {
+    const L = levels[t.id] || 0, vals = u.talentVals?.[t.id];
+    if (!L || !vals) continue;
+    const m = talentMods(vals, L), id = t.id;
+    if (id === 32) out.hp += m[0];
+    else if (id === 31) out.atk += m[0];
+    else if (id === 27) out.speed += m[0];
+    else if (id === 28) out.kb += m[0];
+    else if (id === 25) out.cost += m[0];
+    else if (id === 26) out.cd += m[0];
+    else if (id === 61) out.tba += m[0];
+    else if (TAL_TRAIT[id]) out.traits.push(TAL_TRAIT[id]);
+    else if (TAL_FLAG[id]) {
+      const k = TAL_FLAG[id];
+      if (!out.ab.some(a => a[0] === k)) out.ab.push([k, 1]);
+      out.touched.add(k);
+    } else if (TAL_RES[id]) {
+      const k = "res:" + TAL_RES[id];
+      out.ab.push([k, m[0]]); out.touched.add(k);
+    } else if (TAL_PROC[id]) {
+      const [k, make] = TAL_PROC[id], cur = out.ab.find(a => a[0] === k);
+      if (!cur) out.ab.push([k, ...make(m)]);
+      else if (k === "surge" || k === "miniSurge") { cur[1] = m[0]; cur[4] = m[1]; }
+      else if (k === "weaken") { cur[1] += m[0]; cur[2] += m[1]; }
+      else m.forEach((x, j) => { if (x > 0 && cur.length > 1 + j) cur[1 + j] += x; });
+      out.touched.add(k);
+    }
+  }
+  return out;
 }
 
 function paint(root, c, u) {
@@ -84,13 +154,25 @@ function paint(root, c, u) {
   const lv = state.level ?? (o ? o.level : Math.min(30, c.maxLevel));
   const plus = state.plus ?? (o ? o.plus : 0);
   const f = c.forms[fi], s = u.forms[fi];
-  const mult = levelMult(u.curve, lv + plus);
-  const stat = base => num(base * mult * TREASURE);
-  const hits = s.atk.map(a => Math.floor(a * mult * TREASURE));
-  const total = hits.reduce((a, b) => a + b, 0);
-  const ld = s.ld && (() => { const a = s.ld[0], b = s.ld[0] + s.ld[1]; return `${Math.min(a, b)}~${Math.max(a, b)}`; })();
 
-  const abil = s.ab.map(a => `<li>${esc(abilityText(a, f.traits))}</li>`);
+  // 본능: 3진(진화 3단계)부터 적용. 미적용 / 내 본능 / 전부 최대
+  const talOk = c.talents.length > 0 && fi >= 2;
+  const mode = talOk ? (state.tal ?? (o ? "mine" : "none")) : "none";
+  const levels = mode === "max" ? Object.fromEntries(c.talents.map(t => [t.id, t.max]))
+    : mode === "mine" && o ? (o.talents || {}) : {};
+  const T = applyTalents(c, u, s, levels);
+
+  const mult = levelMult(u.curve, lv + plus);
+  const hp = Math.floor(s.hp * mult * TREASURE * (1 + T.hp / 100));
+  const hits = s.atk.map(a => Math.floor(a * mult * TREASURE * (1 + T.atk / 100)));
+  const total = hits.reduce((a, b) => a + b, 0);
+  const speed = s.speed + T.speed, kb = s.kb + T.kb, cost = (s.cost - T.cost) * 1.5;
+  const respawnF = s.respawn * 2 - T.cd, tbaF = Math.trunc(s.tba * (100 - T.tba) / 100) * 2;
+  const ld = s.ld && (() => { const a = s.ld[0], b = s.ld[0] + s.ld[1]; return `${Math.min(a, b)}~${Math.max(a, b)}`; })();
+  const up = (on, why) => on ? ` class="up" title="본능: ${why}"` : "";
+
+  const traits = [...new Set([...f.traits, ...T.traits])];
+  const abil = T.ab.map(a => `<li${T.touched.has(a[0]) ? ` class="tal-ab"` : ""}>${esc(abilityText(a, traits))}${T.touched.has(a[0]) ? "<em>본능</em>" : ""}</li>`);
   if (s.area) abil.unshift("<li>범위 공격</li>");
   if (ld) abil.unshift(`<li>원거리 공격 (${ld})</li>`);
   if (s.atk.length > 1) abil.push(`<li>${s.atk.length}회 연속 공격</li>`);
@@ -126,23 +208,26 @@ function paint(root, c, u) {
         <div class="panel">
           <h2>스탯 <span class="ctl">Lv <input type="number" id="sLv" min="1" max="${c.maxLevel}" value="${lv}">
             ${c.maxPlus ? `+ <input type="number" id="sPlus" min="0" max="${c.maxPlus}" value="${plus}">` : ""}</span></h2>
+          ${c.talents.length ? (talOk ? `<div class="seg" role="group" aria-label="본능 적용">${[["none", "본능 미적용"], ...(o ? [["mine", "내 본능"]] : []), ["max", "본능 전부 최대"]]
+              .map(([k, l]) => `<button data-tal="${k}" aria-pressed="${mode === k}">${l}</button>`).join("")}</div>`
+            : `<p class="note" style="margin:0 0 10px">본능은 3진부터 적용돼요.</p>`) : ""}
           <div class="stat-table">
-            <div><small>체력</small><b>${stat(s.hp)}</b></div>
-            <div><small>공격력${hits.length > 1 ? " (합계)" : ""}</small><b>${num(total)}</b>${hits.length > 1 ? `<small>${hits.map(num).join(" + ")}</small>` : ""}</div>
+            <div${up(T.hp, `체력 +${T.hp}%`)}><small>체력</small><b>${num(hp)}</b></div>
+            <div${up(T.atk, `공격력 +${T.atk}%`)}><small>공격력${hits.length > 1 ? " (합계)" : ""}</small><b>${num(total)}</b>${hits.length > 1 ? `<small>${hits.map(num).join(" + ")}</small>` : ""}</div>
             <div><small>사거리</small><b>${s.range}</b></div>
             <div><small>공격 범위</small><b>${s.area ? "범위" : "단일"}</b></div>
             <div><small>공격 발생</small><b>${sec(s.pre[0])}</b></div>
-            <div><small>공격 간격(대기)</small><b>${sec(s.tba * 2)}</b></div>
-            <div><small>이동 속도</small><b>${s.speed}</b></div>
-            <div><small>넉백</small><b>${s.kb}<span>회</span></b></div>
-            <div><small>생산 코스트</small><b>${num(s.cost * 1.5)}<span>원</span></b></div>
-            <div><small>재생산</small><b>${sec(s.respawn * 2)}</b></div>
+            <div${up(T.tba, `공격 간격 -${T.tba}%`)}><small>공격 간격(대기)</small><b>${sec(tbaF)}</b></div>
+            <div${up(T.speed, `이동 속도 +${T.speed}`)}><small>이동 속도</small><b>${speed}</b></div>
+            <div${up(T.kb, `넉백 +${T.kb}회`)}><small>넉백</small><b>${kb}<span>회</span></b></div>
+            <div${up(T.cost, `코스트 -${num(T.cost * 1.5)}원`)}><small>생산 코스트</small><b>${num(cost)}<span>원</span></b></div>
+            <div${up(T.cd, `재생산 -${sec(T.cd)}`)}><small>재생산</small><b>${sec(respawnF)}</b></div>
           </div>
-          <p class="note">체력·공격력은 보물 최대 기준이에요. 본능 스탯 보너스, 연구력에 따른 재생산 단축은 반영하지 않았어요. 공격 간격은 공격 모션 시간을 뺀 대기 시간이에요.</p>
+          <p class="note">체력·공격력은 보물 최대 기준이에요. ${talOk && mode !== "none" ? "주황색 칸은 본능으로 바뀐 값이에요. " : ""}연구력에 따른 재생산 단축은 반영하지 않았어요. 공격 간격은 공격 모션 시간을 뺀 대기 시간이에요.</p>
         </div>
         <div class="panel">
           <h2>타겟 속성 · 능력</h2>
-          ${f.traits.length ? traitChips(f.traits) : `<p class="note" style="margin:0">타겟 속성 없음</p>`}
+          ${traits.length ? traitChips(traits) : `<p class="note" style="margin:0">타겟 속성 없음</p>`}
           <ul class="ab-list" style="margin-top:10px">${abil.length ? abil.join("") : `<li class="none">특수 능력 없음</li>`}</ul>
         </div>
         ${c.talents.length ? `<div class="panel"><h2>본능</h2><div class="tal-list">${c.talents.map(t =>
@@ -163,6 +248,7 @@ function paint(root, c, u) {
 
   document.title = `${f.name} - 냥코위키`;
   root.querySelectorAll("[data-form]").forEach(b => b.onclick = () => { state.form = +b.dataset.form; paint(root, c, u); });
+  root.querySelectorAll("[data-tal]").forEach(b => b.onclick = () => { state.tal = b.dataset.tal; paint(root, c, u); });
   const onLv = () => {
     state.level = clamp(parseInt(root.querySelector("#sLv").value) || 1, 1, c.maxLevel);
     state.plus = c.maxPlus ? clamp(parseInt(root.querySelector("#sPlus").value) || 0, 0, c.maxPlus) : 0;

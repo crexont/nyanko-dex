@@ -163,6 +163,13 @@ input[type=search]{flex:1;min-width:180px}
 .stat-table b{font-size:17px;font-variant-numeric:tabular-nums}
 .stat-table b span{font-size:12px;font-weight:500;color:var(--muted);margin-left:3px}
 .note{font-size:12px;color:var(--muted);margin:10px 0 0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin:0 0 12px;flex-wrap:wrap}
+.seg button{font:inherit;font-size:13px;padding:6px 12px;border:0;border-right:1px solid var(--line);background:var(--panel);color:var(--muted);cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--chip-on);color:var(--chip-on-ink);font-weight:700}
+.stat-table div.up b{color:var(--accent)}
+.ab-list li.tal-ab{box-shadow:inset 3px 0 0 var(--ultra)}
+.ab-list li em{font-style:normal;font-size:11px;font-weight:700;color:var(--ultra);margin-left:8px}
 .ab-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
 .ab-list li{padding:7px 10px;background:var(--chip);border-radius:3px;font-size:14px}
 .ab-list li.none{background:none;color:var(--muted);padding:0}

@@ -189,6 +189,7 @@ def main(argv: list[str] | None = None) -> None:
 
     talents: dict[int, list[dict]] = {}
     talent_desc: dict[int, dict[int, str]] = {}
+    talent_vals: dict[int, dict[int, list[int]]] = {}
     for line in read(os.path.join(D, "SkillAcquisition.csv"))[1:]:
         r = [int(x) for x in line.split(",") if x.strip()]
         lst = []
@@ -202,6 +203,8 @@ def main(argv: list[str] | None = None) -> None:
         talents[r[0]] = lst
         talent_desc[r[0]] = {r[i]: skill_desc.get(r[i + 10], "").replace("<br>", " ")
                              for i in range(2, len(r) - 13, 14) if r[i]}
+        # 본능 효과 원본값: [최대 레벨, 최소1, 최대1, 최소2, 최대2, ...] — 레벨별 계산은 사이트에서 (BCU PCoin 방식)
+        talent_vals[r[0]] = {r[i]: [r[i + 1], *r[i + 2:i + 10]] for i in range(2, len(r) - 13, 14) if r[i]}
 
     item_names = [l.split("|")[0].strip() for l in read(os.path.join(R, "GatyaitemName.csv"))]
     curves = [[int(x) for x in l.split(",") if x.strip()] for l in read(os.path.join(D, "unitlevel.csv"))]
@@ -260,6 +263,7 @@ def main(argv: list[str] | None = None) -> None:
             "tf": evolve(ub, 27, 28, item_names) if len(forms) >= 3 else None,
             "ff": evolve(ub, 38, 39, item_names) if len(forms) >= 4 else None,
             "talentDesc": talent_desc.get(cid, {}),
+            "talentVals": talent_vals.get(cid, {}),
         }
 
     out = {"version": data_version, "builtFor": args.version, "rarities": RARITY, "traits": list(TRAIT_COLS.values()),
