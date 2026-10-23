@@ -216,6 +216,19 @@ def main(argv: list[str] | None = None) -> None:
     buy = [l.split(",") for l in read(os.path.join(D, "Gatyaitembuy.csv"))[1:]]
     catseyes = [i for _, i in sorted((int(r[7]), i) for i, r in enumerate(buy) if len(r) > 7 and r[6].strip() == "5")]
     used_items: set[int] = {m[0] for m in matatabi} | set(catseyes)
+    # 본능옥: 세이브의 본능옥 ID = equipmentlist.json "ID" 배열 위치. [효과 종류, 대상 속성(없으면 -1), 등급 0~4=D~S, 값]
+    with open(os.path.join(D, "equipmentlist.json"), encoding="utf-8") as fp:
+        orb_list = [[o["content"], o.get("attribute", -1), o["gradeID"], (o.get("value") or [0])[0]]
+                    for o in json.load(fp)["ID"]]
+    orb_names = [re.sub(r"\s*%@.*$", "", l.split("\t")[0]).strip()
+                 for l in read(os.path.join(R, "equipment_explonation.tsv")) if l.strip()]
+    # 슬롯: 캐릭 ID → 슬롯별 조건 (0 = 3진부터, 1 = 3진 + Lv60). 조건 열이 없으면 전부 0
+    orb_slots = {}
+    for l in read(os.path.join(D, "equipmentslot.csv")):
+        r = [x for x in l.split("//")[0].split(",") if x.strip()]
+        if len(r) >= 2:
+            n = int(r[1])
+            orb_slots[int(r[0])] = [int(x) for x in r[2:2 + n]] if len(r) >= 2 + n else [0] * n
     curves = [[int(x) for x in l.split(",") if x.strip()] for l in read(os.path.join(D, "unitlevel.csv"))]
     units: dict[int, dict] = {}
 
@@ -280,7 +293,11 @@ def main(argv: list[str] | None = None) -> None:
 
     out = {"version": data_version, "builtFor": args.version, "rarities": RARITY, "traits": list(TRAIT_COLS.values()),
            "items": {i: item_names[i] if i < len(item_names) else f"아이템 {i}" for i in sorted(used_items)},
-           "matatabi": matatabi, "catseyes": catseyes, "cats": cats}
+           "matatabi": matatabi, "catseyes": catseyes,
+           # 본능옥 대상 속성 (equipment_attribute.csv 열 순서. 9·10은 쓰이지 않음)
+           "orbs": {"list": orb_list, "names": orb_names, "slots": orb_slots,
+                    "traits": ["빨강", "떠있음", "검정", "메탈", "천사", "에이리언", "좀비", "고대종", "무속성", "마녀", "사도", "악마"]},
+           "cats": cats}
     with open(os.path.join(SITE, "gamedata.js"), "w", encoding="utf-8") as f:
         f.write("window.GAMEDATA = ")
         json.dump(out, f, ensure_ascii=False, separators=(",", ":"))

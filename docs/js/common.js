@@ -105,9 +105,11 @@ export async function importJson(text) {
     cats[c.id] = { form: clamp(c.form | 0, 0, g.forms.length - 1), level: clamp(c.level | 0, 1, g.maxLevel),
                    plus: clamp(c.plus | 0, 0, g.maxPlus), talents: pickTalents(g, c.talents || {}) };
   }
+  // 육성 계획·본능옥 선택은 세이브에 없는 내 입력이라, 파일에 없으면 지금 것을 유지
   const plan = Array.isArray(d.plan) ? d.plan : (store.data?.plan || []);
+  const orbEquip = d.orbEquip || store.data?.orbEquip || {};
   store.data = { meta: { source: d.source || "불러온 파일", saveModified: d.saveModified, gameVersion: d.gameVersion,
-                         catfood: d.catfood, importedAt: new Date().toISOString() }, cats, plan };
+                         catfood: d.catfood, importedAt: new Date().toISOString() }, cats, plan, orbEquip };
   if (inv) store.data.inv = { ...inv, updatedAt: new Date().toISOString() };
   store.persist();
   toast(`${Object.keys(cats).length}마리${inv ? "와 재화·재료" : ""}를 불러왔어요.`);
@@ -123,11 +125,22 @@ export function exportJson() {
   const out = { source: "NyankoWiki", exportedAt: new Date().toISOString(), saveModified: d.meta.saveModified,
     gameVersion: d.meta.gameVersion, catfood: d.meta.catfood,
     cats: Object.entries(d.cats).map(([id, c]) => ({ id: +id, ...c })),
-    ...(d.inv ? { inv: d.inv } : {}), plan: d.plan || [] };
+    ...(d.inv ? { inv: d.inv } : {}), plan: d.plan || [], orbEquip: d.orbEquip || {} };
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 1)], { type: "application/json" }));
   a.download = `냥코위키_내도감_${new Date().toISOString().slice(0, 10)}.json`;
   a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// ---- 본능옥 ----
+export const ORB_GRADE = ["D", "C", "B", "A", "S"];
+// 본능옥 ID → { content, attr, grade, value, label }
+export function orbInfo(id) {
+  const o = GD.orbs?.list?.[id]; if (!o) return null;
+  const [content, attr, grade, value] = o;
+  const name = GD.orbs.names[content] ?? `본능옥 ${content}`;
+  const trait = attr >= 0 ? GD.orbs.traits[attr] : null;
+  return { content, attr, grade, value, trait, label: `${name}${trait ? `【${trait}】` : ""} ${ORB_GRADE[grade] ?? "?"}` };
 }
 
 // ---- 재료·진화 판정 ----

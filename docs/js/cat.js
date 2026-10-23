@@ -1,5 +1,5 @@
 // 캐릭터 상세 — 진화 단계별 스탯·능력·본능·진화 재료 + 내 보유 상태
-import { BYID, FORM, esc, clamp, icon, rarBadge, traitChips, view, store, itemName, have, haveXp } from "./common.js";
+import { GD, BYID, FORM, esc, clamp, icon, rarBadge, traitChips, view, store, itemName, have, haveXp, ORB_GRADE } from "./common.js";
 import { openEdit } from "./edit.js";
 import { addToPlan, removeFromPlan, inPlan } from "./plan.js";
 
@@ -9,12 +9,12 @@ const loadUnits = () => unitsPromise ??= fetch("data/units.json").then(r => {
   return r.json();
 });
 
-const state = { id: null, form: null, level: null, plus: null, tal: null };
+const state = { id: null, form: null, level: null, plus: null, tal: null, orbs: null };
 
 export function renderCat(root, id) {
   const c = BYID.get(id);
   if (!c) { root.innerHTML = `<div class="empty">캐릭터를 찾을 수 없어요. <a href="#/cats">캐릭터 목록으로</a></div>`; return; }
-  if (state.id !== id) Object.assign(state, { id, form: null, level: null, plus: null, tal: null });
+  if (state.id !== id) Object.assign(state, { id, form: null, level: null, plus: null, tal: null, orbs: null });
   root.innerHTML = `<div class="empty">불러오는 중…</div>`;
   const draw = () => loadUnits().then(units => paint(root, c, units[id]))
     .catch(() => { root.innerHTML = `<div class="empty">캐릭터 데이터를 불러오지 못했어요. 새로고침해 주세요.</div>`; });
@@ -38,6 +38,29 @@ function levelMult(curve, total) {
   return d;
 }
 const TREASURE = f32(2.5);  // 보물 최대 (1 + 300×0.005)
+
+// 본능옥 효과 수치 (등급 D~S). BCU util/Data.java 의 ORB_ATK_MULTI 등과 같은 값
+const ORB_ATK = [100, 200, 300, 400, 500];      // 데미지 업: 기본 공격력(레벨·보물 전 값)의 n% 추가
+const ORB_RES = [4, 8, 12, 16, 20];             // 데미지 경감: 받는 데미지 −n%
+const ORB_STR = [0.06, 0.12, 0.18, 0.24, 0.3];  // 엄청 강하다 강화: 배율 +n
+const ORB_MAS = [0.1, 0.2, 0.3, 0.4, 0.5];      // 초 데미지 강화: 배율 +n
+const ORB_RESIST = [5, 10, 15, 20, 25];         // 맷집이 좋다 강화
+const ORB_KINDS = [0, 1, 2, 3, 4];              // 스탯에 영향을 주는 속성 대상 본능옥만 고를 수 있게
+
+// 슬롯 하나: [종류][대상 속성][등급]. 대상 속성 목록은 게임 데이터에 실제로 있는 조합만
+function orbSlotHtml(i, cond, sel) {
+  const [k, attr, g] = sel || [-1, -1, 0];
+  const attrs = k >= 0 ? [...new Set(GD.orbs.list.filter(o => o[0] === k).map(o => o[1]))] : [];
+  return `<div class="orb-slot" data-slot="${i}">
+    <span class="orb-no">${i + 1}${cond >= 1 ? "<small>Lv60~</small>" : ""}</span>
+    <select data-orb="k" aria-label="본능옥 종류"><option value="-1">없음</option>${ORB_KINDS.map(x =>
+      `<option value="${x}"${x === k ? " selected" : ""}>${esc(GD.orbs.names[x])}</option>`).join("")}</select>
+    <select data-orb="attr" aria-label="대상 속성"${k < 0 ? " disabled" : ""}>${attrs.map(a =>
+      `<option value="${a}"${a === attr ? " selected" : ""}>${GD.orbs.traits[a]}</option>`).join("")}</select>
+    <select data-orb="g" aria-label="등급"${k < 0 ? " disabled" : ""}>${ORB_GRADE.map((G, x) =>
+      `<option value="${x}"${x === g ? " selected" : ""}>${G}</option>`).join("")}</select>
+  </div>`;
+}
 // 체력: trunc( trunc( round(기본×레벨) × 보물 ) × 본능 )
 const calcHp = (base, mult, talentPct) => Math.trunc(Math.trunc(f32(Math.round(f32(base * mult)) * TREASURE)) * (1 + talentPct * 0.01));
 // 공격력(한 타): trunc( 본능 × trunc( round(기본×레벨) × 보물 ) )
@@ -184,15 +207,41 @@ function paint(root, c, u) {
 
   const traits = [...new Set([...f.traits, ...T.traits])];
 
+  // 본능옥 (3진부터, 슬롯 있는 캐릭만). 효과 수치는 BCU util/Data.java 상수, 계산은 battle/entity/EUnit 기준
+  const slots = GD.orbs?.slots?.[c.id];
+  const orbOk = !!slots && fi >= 2;
+  const orbs = orbOk ? slots.map((_, i) => (state.orbs ?? store.data?.orbEquip?.[c.id])?.[i] || null) : [];
+  const orbFx = { str: {}, mas: {}, lines: [], notes: [] };  // str/mas: 속성별 배율 추가분
+  for (const sel of orbs) {
+    if (!sel) continue;
+    const [k, attr, g] = sel, t = GD.orbs.traits[attr], G = ORB_GRADE[g];
+    if (k === 0) orbFx.lines.push([`${t}에게 (본능옥 데미지 업 ${G})`, total + s.atk.reduce((a, raw) => a + Math.trunc(ORB_ATK[g] * raw / 100), 0)]);
+    else if (k === 1) orbFx.notes.push(`${t}에게 받는 데미지 −${ORB_RES[g]}% (본능옥 데미지 경감 ${G})`);
+    else if (k === 2) orbFx.str[t] = (orbFx.str[t] || 0) + ORB_STR[g];
+    else if (k === 3) orbFx.mas[t] = (orbFx.mas[t] || 0) + ORB_MAS[g];
+    else if (k === 4) orbFx.notes.push(`${t}에게 맷집이 좋다 효과 강화 +${ORB_RESIST[g]} (본능옥 ${G})`);
+  }
+
   // 상황별 공격력 (본능 반영 후 능력 기준). 배율: 엄청 강하다 ×1.8 · 초 데미지 ×4 (보물 최대), 크리티컬 ×2
   const abOf = k => T.ab.find(a => a[0] === k);
   const toT = traits.length ? traits.join("·") : "대상 속성";
+  // 엄청 강하다·초 데미지: 본능옥으로 강화된 속성은 따로 한 줄
+  const multLines = (key, label, base, add) => {
+    if (!abOf(key)) return [];
+    const boosted = traits.filter(t => add[t]);
+    const rest = traits.filter(t => !add[t]);
+    return [
+      (rest.length || !boosted.length) && [`${rest.length ? rest.join("·") : toT}에게 (${label}, ×${base})`, base],
+      ...boosted.map(t => [`${t}에게 (${label} + 본능옥, ×${+(base + add[t]).toFixed(2)})`, base + add[t]]),
+    ].filter(Boolean);
+  };
   const cond = [
     abOf("strengthen") && [`공격력 업 (체력 ${abOf("strengthen")[1]}% 이하, +${abOf("strengthen")[2]}%)`, 1 + abOf("strengthen")[2] / 100],
-    abOf("strong") && [`${toT}에게 (엄청 강하다, ×1.8)`, 1.8],
-    abOf("massive") && [`${toT}에게 (초 데미지, ×4)`, 4],
+    ...multLines("strong", "엄청 강하다", 1.8, orbFx.str),
+    ...multLines("massive", "초 데미지", 4, orbFx.mas),
     abOf("savage") && [`혼신의 일격 발동 (${abOf("savage")[1]}%, +${abOf("savage")[2]}%)`, 1 + abOf("savage")[2] / 100],
     abOf("crit") && [`크리티컬 발동 (${abOf("crit")[1]}%, ×2)`, 2],
+    ...orbFx.lines.map(([label, v]) => [label, null, v]),  // 값이 정해진 줄 (배율 대신)
   ].filter(Boolean);
   const abil = T.ab.map(a => `<li${T.touched.has(a[0]) ? ` class="tal-ab"` : ""}>${esc(abilityText(a, traits))}${T.touched.has(a[0]) ? "<em>본능</em>" : ""}</li>`);
   if (s.area) abil.unshift("<li>범위 공격</li>");
@@ -248,10 +297,15 @@ function paint(root, c, u) {
             <div${up(T.cost, `코스트 -${num(T.cost * 1.5)}원`)}><small>생산 코스트</small><b>${num(cost)}<span>원</span></b></div>
             <div${up(T.cd, `재생산 -${sec(T.cd)}`)}><small>재생산</small><b>${sec(respawnF)}</b></div>
           </div>
-          ${cond.length ? `<div class="cond"><small>상황별 공격력${hits.length > 1 ? " (합계)" : ""}</small>${cond.map(([label, x]) =>
-            `<div><span>${esc(label)}</span><b>${num(total * x)}</b></div>`).join("")}</div>` : ""}
+          ${cond.length ? `<div class="cond"><small>상황별 공격력${hits.length > 1 ? " (합계)" : ""}</small>${cond.map(([label, x, v]) =>
+            `<div><span>${esc(label)}</span><b>${num(v ?? total * x)}</b></div>`).join("")}</div>` : ""}
+          ${orbFx.notes.length ? `<div class="cond"><small>본능옥 효과</small>${orbFx.notes.map(n => `<div><span>${esc(n)}</span></div>`).join("")}</div>` : ""}
           <p class="note">체력·공격력은 보물 최대 기준이에요. ${talOk && mode !== "none" ? "주황색 칸은 본능으로 바뀐 값이에요. " : ""}연구력에 따른 재생산 단축은 반영하지 않았어요. 공격 간격은 공격 모션 시간을 뺀 대기 시간이에요.</p>
         </div>
+        ${slots ? `<div class="panel"><h2>본능옥 <span class="ctl">슬롯 ${slots.length}개</span></h2>${orbOk
+          ? `<div class="orb-slots">${slots.map((cond, i) => orbSlotHtml(i, cond, orbs[i])).join("")}</div>
+             <p class="note">장착한 본능옥은 세이브에서 읽을 수 없어서 직접 골라요. 효과는 위 상황별 공격력·본능옥 효과에 반영돼요.</p>`
+          : `<p class="note" style="margin:0">본능옥은 3진부터 장착할 수 있어요.</p>`}</div>` : ""}
         <div class="panel">
           <h2>타겟 속성 · 능력</h2>
           ${traits.length ? traitChips(traits) : `<p class="note" style="margin:0">타겟 속성 없음</p>`}
@@ -276,6 +330,17 @@ function paint(root, c, u) {
   document.title = `${f.name} - 냥코위키`;
   root.querySelectorAll("[data-form]").forEach(b => b.onclick = () => { state.form = +b.dataset.form; paint(root, c, u); });
   root.querySelectorAll("[data-tal]").forEach(b => b.onclick = () => { state.tal = b.dataset.tal; paint(root, c, u); });
+  // 본능옥 선택: 화면 상태에 두고, 내 도감 데이터가 있으면 캐릭별로 저장 (다음에 열어도 유지)
+  root.querySelectorAll(".orb-slot select").forEach(sel => sel.onchange = () => {
+    const slot = sel.closest(".orb-slot"), i = +slot.dataset.slot;
+    const k = +slot.querySelector('[data-orb="k"]').value;
+    let attr = +slot.querySelector('[data-orb="attr"]').value, g = +slot.querySelector('[data-orb="g"]').value;
+    if (k >= 0 && !GD.orbs.list.some(o => o[0] === k && o[1] === attr)) attr = GD.orbs.list.find(o => o[0] === k)[1];
+    state.orbs = orbs.slice();
+    state.orbs[i] = k < 0 ? null : [k, attr, Number.isFinite(g) ? g : 0];
+    if (store.data) { store.data.orbEquip ??= {}; store.data.orbEquip[c.id] = state.orbs; store.persist(true); }
+    paint(root, c, u);
+  });
   root.querySelectorAll("[data-plan]").forEach(b => b.onclick = () =>
     inPlan(c.id, b.dataset.plan) ? removeFromPlan(c.id, b.dataset.plan) : addToPlan(c.id, b.dataset.plan));
   const onLv = () => {

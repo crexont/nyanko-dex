@@ -1,5 +1,5 @@
 // 육성 — 보유 재화·재료 + 진화 육성 계획 (필요 재료 합계·부족분)
-import { GD, BYID, FORM, esc, icon, store, view, itemName, have, haveXp, toast } from "./common.js";
+import { GD, BYID, FORM, esc, icon, store, view, itemName, have, haveXp, toast, orbInfo, ORB_GRADE } from "./common.js";
 
 const CURRENCY = [["xp", "경험치"], ["np", "NP"], ["catfood", "캣푸드"], ["normalTickets", "냥코 티켓"],
                   ["rareTickets", "레어 티켓"], ["platinumTickets", "플래티넘 티켓"], ["legendTickets", "레전드 티켓"]];
@@ -61,6 +61,7 @@ export function renderPlan(root) {
         <div class="panel"><h2>재화</h2><div class="inv-grid" id="pCur"></div></div>
         <div class="panel"><h2>보유 재료</h2><div id="pItems"></div>
           <p class="note">세이브를 불러오면 채워지고, 직접 고쳐도 돼요. 숫자를 바꾸면 바로 저장돼요.</p></div>
+        <div class="panel"><h2>보유 본능옥</h2><div id="pOrbs"></div></div>
       </div>
     </div>`;
 
@@ -127,6 +128,13 @@ function renderInv() {
   document.getElementById("pItems").innerHTML = itemGroups().map(([title, ids]) => ids.length ? `
     <div class="inv-group"><small>${title}</small><div class="inv-grid">${ids.map(id =>
       `<label title="${esc(itemName(id))}"><span>${esc(shortName(itemName(id)))}</span><input type="number" min="0" inputmode="numeric" data-item="${id}" value="${have(id)}"></label>`).join("")}</div></div>` : "").join("");
+  // 본능옥: 세이브에서 읽은 그대로 (장착 정보는 세이브에서 못 읽어서 캐릭터 상세에서 직접 고른다)
+  const orbs = Object.entries(inv?.orbs || {}).map(([id, n]) => [orbInfo(+id), n]).filter(([o, n]) => o && n > 0)
+    .sort(([a], [b]) => a.content - b.content || a.attr - b.attr || b.grade - a.grade);
+  document.getElementById("pOrbs").innerHTML = orbs.length
+    ? `<ul class="orb-list">${orbs.map(([o, n]) => `<li><span class="orb-g g${o.grade}">${ORB_GRADE[o.grade]}</span>${esc(o.label.replace(/ [DCBAS]$/, ""))}<b>×${n}</b></li>`).join("")}</ul>
+       <p class="note">어느 캐릭에 장착했는지는 세이브에서 읽을 수 없어요. 캐릭터 상세에서 직접 골라 스탯을 확인하세요.</p>`
+    : `<p class="note" style="margin:0">${inv ? "보유한 본능옥이 없어요." : "세이브를 불러오면 보여요."}</p>`;
 }
 
 function renderPlanParts() {
