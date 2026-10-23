@@ -8,10 +8,7 @@
 [![버전](https://img.shields.io/badge/version-v2.0-1f1d1a?style=for-the-badge)](../../releases/latest)
 [![추출 도구](https://img.shields.io/badge/추출%20도구-다운로드-2f8a4e?style=for-the-badge)](../../releases/latest)
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/v2.0-home-dark.png">
-  <img src="images/v2.0-home-light.png" alt="냥코위키 홈 화면" width="860">
-</picture>
+<img src="images/v2.0-home.png" alt="냥코위키 홈 화면" width="860">
 
 </div>
 
@@ -31,10 +28,7 @@
 
 아군 캐릭 770종 목록과 캐릭별 상세 페이지.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/v2.0-cat-dark.png">
-  <img src="images/v2.0-cat-light.png" alt="캐릭터 상세 — 본능 적용 스탯, 상황별 공격력, 내 보유 상태, 진화 재료" width="860">
-</picture>
+<img src="images/v2.0-cat.png" alt="캐릭터 상세 — 본능 적용 스탯, 상황별 공격력, 내 보유 상태, 진화 재료" width="860">
 
 - **진화 단계별 스탯**: 체력·공격력(레벨 지정 계산, 보물 최대 기준), 사거리, 공격 발생, 공격 간격, 이동 속도, 코스트, 재생산, 넉백
 - **나무위키식 스탯 표**: Lv30·40·50·60 체력·공격력·DPS와 엄강·맷집·초뎀 범위, 타격별 선딜·유효 사거리, 쿨타임·공격빈도·후딜 프레임
@@ -47,10 +41,7 @@
 
 ### 📒 내 도감
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/v2.0-dex-dark.png">
-  <img src="images/v2.0-dex-light.png" alt="내 도감 — 보유·진화·레벨·본능 현황과 할 일 필터" width="860">
-</picture>
+<img src="images/v2.0-dex.png" alt="내 도감 — 보유·진화·레벨·본능 현황과 할 일 필터" width="860">
 
 - **세이브 불러오기**: PC 추출 도구로 내 세이브를 읽어서 보유 캐릭·진화·레벨+플러스·본능을 한 번에 채웁니다. 수백 마리를 일일이 입력하지 않아도 됩니다.
 - **직접 수정**: 캐릭을 눌러 보유 여부, 진화 단계, 레벨+플러스, 본능 레벨을 고칩니다. 세이브 없이 처음부터 직접 입력해도 됩니다.
@@ -60,10 +51,7 @@
 
 ### 🌱 육성 (v2.0)
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/v2.0-plan-dark.png">
-  <img src="images/v2.0-plan-light.png" alt="육성 — 육성 계획과 필요 재료 합계, 보유 재화·재료" width="860">
-</picture>
+<img src="images/v2.0-plan.png" alt="육성 — 육성 계획과 필요 재료 합계, 보유 재화·재료" width="860">
 
 - **재화·재료**: 세이브에서 경험치·NP·통조림·티켓, 개다래 씨앗·열매, 수석, 캐츠아이, 본능옥 보유량을 불러옵니다. 직접 고쳐도 됩니다.
 - **지금 바로 진화 가능**: 보유 캐릭 중 레벨과 재료가 모두 충족된 캐릭 목록
