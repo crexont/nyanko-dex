@@ -172,6 +172,17 @@ function paint(root, c, u) {
   const up = (on, why) => on ? ` class="up" title="본능: ${why}"` : "";
 
   const traits = [...new Set([...f.traits, ...T.traits])];
+
+  // 상황별 공격력 (본능 반영 후 능력 기준). 배율: 엄청 강하다 ×1.8 · 초 데미지 ×4 (보물 최대), 크리티컬 ×2
+  const abOf = k => T.ab.find(a => a[0] === k);
+  const toT = traits.length ? traits.join("·") : "대상 속성";
+  const cond = [
+    abOf("strengthen") && [`공격력 업 (체력 ${abOf("strengthen")[1]}% 이하, +${abOf("strengthen")[2]}%)`, 1 + abOf("strengthen")[2] / 100],
+    abOf("strong") && [`${toT}에게 (엄청 강하다, ×1.8)`, 1.8],
+    abOf("massive") && [`${toT}에게 (초 데미지, ×4)`, 4],
+    abOf("savage") && [`혼신의 일격 발동 (${abOf("savage")[1]}%, +${abOf("savage")[2]}%)`, 1 + abOf("savage")[2] / 100],
+    abOf("crit") && [`크리티컬 발동 (${abOf("crit")[1]}%, ×2)`, 2],
+  ].filter(Boolean);
   const abil = T.ab.map(a => `<li${T.touched.has(a[0]) ? ` class="tal-ab"` : ""}>${esc(abilityText(a, traits))}${T.touched.has(a[0]) ? "<em>본능</em>" : ""}</li>`);
   if (s.area) abil.unshift("<li>범위 공격</li>");
   if (ld) abil.unshift(`<li>원거리 공격 (${ld})</li>`);
@@ -223,6 +234,8 @@ function paint(root, c, u) {
             <div${up(T.cost, `코스트 -${num(T.cost * 1.5)}원`)}><small>생산 코스트</small><b>${num(cost)}<span>원</span></b></div>
             <div${up(T.cd, `재생산 -${sec(T.cd)}`)}><small>재생산</small><b>${sec(respawnF)}</b></div>
           </div>
+          ${cond.length ? `<div class="cond"><small>상황별 공격력${hits.length > 1 ? " (합계)" : ""}</small>${cond.map(([label, x]) =>
+            `<div><span>${esc(label)}</span><b>${num(total * x)}</b></div>`).join("")}</div>` : ""}
           <p class="note">체력·공격력은 보물 최대 기준이에요. ${talOk && mode !== "none" ? "주황색 칸은 본능으로 바뀐 값이에요. " : ""}연구력에 따른 재생산 단축은 반영하지 않았어요. 공격 간격은 공격 모션 시간을 뺀 대기 시간이에요.</p>
         </div>
         <div class="panel">
