@@ -18,7 +18,7 @@ import shutil
 
 from Crypto.Cipher import AES
 
-from common import ROOT
+from common import ROOT, use_local_bcsfe_dir
 
 DEFAULT_FILES = os.path.join(ROOT, "device")
 SITE = os.path.join(ROOT, "docs")
@@ -44,6 +44,7 @@ STAT_TALENT = {"체력 저하로 공격력": "공격력 업(체력 저하)", "�
 def game_data_dir(version: str) -> tuple[str, str]:
     """(CSV 폴더, 실제로 받은 버전). 정확한 버전이 없으면 BCSFE가 가까운 버전을 고른다."""
     from bcsfe import core
+    use_local_bcsfe_dir()
     core.core_data.init_data()
     gdg = core.GameDataGetter(core.CountryCode.from_code("kr"),
                               core.GameVersion.from_string(version))

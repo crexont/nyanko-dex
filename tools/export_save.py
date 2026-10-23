@@ -12,7 +12,7 @@ import os
 
 from bcsfe import core
 
-from common import ROOT
+from common import ROOT, use_local_bcsfe_dir
 
 DEFAULT_SAVE = os.path.join(ROOT, "device", "SAVE_DATA")
 DEFAULT_OUT = os.path.join(ROOT, "냥코_세이브.json")
@@ -23,6 +23,7 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("save", nargs="?", default=DEFAULT_SAVE)
     ap.add_argument("-o", "--out", default=DEFAULT_OUT)
     args = ap.parse_args(argv)
+    use_local_bcsfe_dir()
 
     with open(args.save, "rb") as f:
         raw = f.read()

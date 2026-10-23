@@ -10,7 +10,7 @@ import sys
 
 import export_save
 import extract_vhdx
-from common import FROZEN, ROOT
+from common import FROZEN, ROOT, use_local_bcsfe_dir
 
 SITE_URL = "https://crexont.github.io/nyanko-wiki/#/dex"  # 내 도감 페이지로 바로
 OUT = os.path.join(ROOT, "냥코_세이브.json")
@@ -26,6 +26,7 @@ def main() -> None:
     ap.add_argument("--no-extract", action="store_true", help="device/ 에 이미 있는 파일 사용")
     ap.add_argument("--no-open", action="store_true")
     args = ap.parse_args()
+    use_local_bcsfe_dir()  # 무엇보다 먼저: 문서\bcsfe 대신 exe 폴더\bcsfe_data
 
     if not args.no_extract:
         log("[1/2] 블루스택에서 세이브 추출")
