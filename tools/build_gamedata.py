@@ -3,7 +3,9 @@
 - CSV: BCSFE가 내려받은 한국판 게임 데이터 (없으면 자동 다운로드)
 - 아이콘: 기기에서 꺼낸 APK의 UnitLocal.pack + *UnitServer.pack 을 복호화해서 uni###_?00.png 추출 (알 캐릭은 uniNNN_m0?)
 
-출력: docs/gamedata.js (window.GAMEDATA), docs/icons/<id>_<form>.png  (GitHub Pages 사이트용, 커밋한다)
+- 아이템 아이콘: ImageLocal.pack(APK) + *ImageServer.pack 의 gatyaitemD_<아이템 ID>_f.png
+
+출력: docs/gamedata.js (window.GAMEDATA), docs/icons/<id>_<form>.png, docs/icons/items/<아이템 ID>.png  (GitHub Pages 사이트용, 커밋한다)
 사용: python tools/extract_vhdx.py --with-packs → python tools/build_gamedata.py [--version 15.6.0]
 """
 from __future__ import annotations
@@ -83,6 +85,10 @@ LOCAL_IV = bytes.fromhex("9b13c2121d39f1353a125fed98696649")
 
 
 UNIT_ANIM = re.compile(r"\d{3}_[fcsu]02\.maanim")  # 캐릭 공격 모션 (02 = 공격)
+ITEM_ICON = re.compile(r"gatyaitemD_\d+_f\.png")  # 아이템 아이콘 (번호 = GatyaitemName 행 = 아이템 ID)
+# 재화 아이콘: 경험치·NP·통조림·냥코/레어/플래티넘/레전드 티켓
+CURRENCY_ITEMS = {"xp": 6, "np": 7, "catfood": 22, "normalTickets": 20, "rareTickets": 21,
+                  "platinumTickets": 29, "legendTickets": 145}
 
 
 class IconPacks:
@@ -97,7 +103,7 @@ class IconPacks:
             raw = AES.new(LIST_KEY, AES.MODE_ECB).decrypt(open(lst, "rb").read())
             for line in raw[:-raw[-1]].decode("utf-8", "replace").splitlines()[1:]:
                 name, off, size = line.split(",")[:3]
-                if name.startswith("uni") or UNIT_ANIM.fullmatch(name):
+                if name.startswith("uni") or UNIT_ANIM.fullmatch(name) or ITEM_ICON.fullmatch(name):
                     self.index[name] = (lst[:-5] + ".pack", int(off), int(size))
 
     def get(self, name: str, text: bool = False) -> bytes | None:
@@ -341,7 +347,7 @@ def main(argv: list[str] | None = None) -> None:
 
     out = {"version": data_version, "builtFor": args.version, "rarities": RARITY, "traits": list(TRAIT_COLS.values()),
            "items": {i: item_names[i] if i < len(item_names) else f"아이템 {i}" for i in sorted(used_items)},
-           "matatabi": matatabi, "catseyes": catseyes,
+           "matatabi": matatabi, "catseyes": catseyes, "currencyItems": CURRENCY_ITEMS,
            # 본능옥 대상 속성 (equipment_attribute.csv 열 순서. 9·10은 쓰이지 않음)
            "orbs": {"list": orb_list, "names": orb_names, "slots": orb_slots,
                     "traits": ["빨강", "떠있음", "검정", "메탈", "천사", "에이리언", "좀비", "고대종", "무속성", "마녀", "사도", "악마"]},
@@ -353,6 +359,17 @@ def main(argv: list[str] | None = None) -> None:
     os.makedirs(os.path.join(SITE, "data"), exist_ok=True)
     with open(os.path.join(SITE, "data", "units.json"), "w", encoding="utf-8") as f:
         json.dump(units, f, ensure_ascii=False, separators=(",", ":"))
+    # 재료·재화 아이콘: docs/icons/items/<아이템 ID>.png
+    item_dir = os.path.join(icon_dir, "items")
+    os.makedirs(item_dir)
+    item_icons = []
+    for i in sorted(used_items | set(CURRENCY_ITEMS.values())):
+        png = packs.get(f"gatyaitemD_{i:02d}_f.png")
+        if png:
+            with open(os.path.join(item_dir, f"{i}.png"), "wb") as fp:
+                fp.write(png)
+            item_icons.append(i)
+    print(f"아이템 아이콘 {len(item_icons)}개 (없음: {sorted((used_items | set(CURRENCY_ITEMS.values())) - set(item_icons))})")
     print(f"캐릭 {len(cats)}종, 아이콘 {n_icons}개, 본능 보유 캐릭 {sum(1 for c in cats if c['talents'])}종")
 
 

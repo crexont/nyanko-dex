@@ -145,6 +145,9 @@ export function orbInfo(id) {
 
 // ---- 재료·진화 판정 ----
 export const itemName = id => GD.items?.[id] ?? `아이템 ${id}`;
+// 아이템 아이콘 (docs/icons/items/<아이템 ID>.png). 이름은 마우스를 올리면 보인다
+export const itemIcon = (id, name = itemName(id)) =>
+  `<img class="item-ic" src="icons/items/${id}.png" alt="${esc(name)}" title="${esc(name)}" loading="lazy">`;
 export const have = id => store.data?.inv?.items?.[id] ?? 0;
 export const haveXp = () => store.data?.inv?.currency?.xp ?? 0;
 

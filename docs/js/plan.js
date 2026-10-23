@@ -1,5 +1,5 @@
 // 육성 — 보유 재화·재료 + 진화 육성 계획 (필요 재료 합계·부족분)
-import { GD, BYID, FORM, esc, icon, store, view, itemName, have, haveXp, toast, orbInfo, ORB_GRADE } from "./common.js";
+import { GD, BYID, FORM, esc, icon, store, view, itemName, itemIcon, have, haveXp, toast, orbInfo, ORB_GRADE } from "./common.js";
 
 const CURRENCY = [["xp", "경험치"], ["np", "NP"], ["catfood", "통조림"], ["normalTickets", "냥코 티켓"],
                   ["rareTickets", "레어 티켓"], ["platinumTickets", "플래티넘 티켓"], ["legendTickets", "레전드 티켓"]];
@@ -15,9 +15,6 @@ function itemGroups() {
     ["캐츠아이", GD.catseyes || []],
   ];
 }
-
-// 재료 칸용 짧은 이름 (묶음 제목이 이미 열매/씨앗/캐츠아이라서)
-const shortName = n => n.replace(" 개다래나무의 씨앗", " 씨앗").replace(" 개다래 열매", " 열매").replace(/^캣츠아이【(.+)】$/, "$1");
 
 // 계획 하나의 비용·상태
 function planEntry(p) {
@@ -123,11 +120,12 @@ function renderInv() {
   meta.textContent = inv
     ? [inv.saveModified && `재화 기준: 세이브 ${fmt(inv.saveModified)}`, inv.updatedAt && `마지막 수정 ${fmt(new Date(inv.updatedAt).toLocaleString("sv"))}`].filter(Boolean).join(" · ")
     : "아직 재화 정보가 없어요. 세이브를 불러오거나(추출 도구 v2.0 이상) 아래에 직접 입력하세요.";
+  // 재화·재료 칸: 이름 대신 게임 아이콘 (이름은 마우스를 올리면)
   document.getElementById("pCur").innerHTML = CURRENCY.map(([k, label]) =>
-    `<label><span>${label}</span><input type="number" min="0" inputmode="numeric" data-cur="${k}" value="${cur[k] ?? 0}"></label>`).join("");
+    `<label title="${label}">${itemIcon(GD.currencyItems[k], label)}<input type="number" min="0" inputmode="numeric" data-cur="${k}" value="${cur[k] ?? 0}"></label>`).join("");
   document.getElementById("pItems").innerHTML = itemGroups().map(([title, ids]) => ids.length ? `
     <div class="inv-group"><small>${title}</small><div class="inv-grid">${ids.map(id =>
-      `<label title="${esc(itemName(id))}"><span>${esc(shortName(itemName(id)))}</span><input type="number" min="0" inputmode="numeric" data-item="${id}" value="${have(id)}"></label>`).join("")}</div></div>` : "").join("");
+      `<label title="${esc(itemName(id))}">${itemIcon(id)}<input type="number" min="0" inputmode="numeric" data-item="${id}" value="${have(id)}"></label>`).join("")}</div></div>` : "").join("");
   // 본능옥: 세이브에서 읽은 그대로 (장착 정보는 세이브에서 못 읽어서 캐릭터 상세에서 직접 고른다)
   const orbs = Object.entries(inv?.orbs || {}).map(([id, n]) => [orbInfo(+id), n]).filter(([o, n]) => o && n > 0)
     .sort(([a], [b]) => a.content - b.content || a.attr - b.attr || b.grade - a.grade);
@@ -156,12 +154,12 @@ function renderPlanParts() {
     xp += e.cost.xp;
     for (const [id, n] of e.cost.items) need.set(id, (need.get(id) || 0) + n);
   }
-  const rows = [["경험치", xp, haveXp()], ...[...need].map(([id, n]) => [itemName(id), n, have(id)])].filter(r => r[1] > 0);
-  const lack = rows.filter(([, n, h]) => h < n).length;
+  const rows = [[GD.currencyItems.xp, "경험치", xp, haveXp()], ...[...need].map(([id, n]) => [id, itemName(id), n, have(id)])].filter(r => r[2] > 0);
+  const lack = rows.filter(([, , n, h]) => h < n).length;
   document.getElementById("pSum").innerHTML = rows.length ? `
     <h3 class="sum-title">필요 재료 합계 ${lack ? `<span class="tag todo">${lack}종 부족</span>` : `<span class="tag ready">전부 충분</span>`}</h3>
     <table class="sum-table"><thead><tr><th>재료</th><th>필요</th><th>보유</th><th>부족</th></tr></thead><tbody>
-    ${rows.map(([name, n, h]) => `<tr class="${h < n ? "lack" : ""}"><td>${esc(name)}</td><td>${n.toLocaleString()}</td><td>${h.toLocaleString()}</td><td>${h < n ? (n - h).toLocaleString() : "-"}</td></tr>`).join("")}
+    ${rows.map(([id, name, n, h]) => `<tr class="${h < n ? "lack" : ""}"><td class="item-cell">${itemIcon(id, name)}${esc(name)}</td><td>${n.toLocaleString()}</td><td>${h.toLocaleString()}</td><td>${h < n ? (n - h).toLocaleString() : "-"}</td></tr>`).join("")}
     </tbody></table>
     ${store.data?.inv ? "" : `<p class="note">보유량이 0으로 계산됐어요. 재화·재료를 불러오거나 입력하세요.</p>`}` : "";
 
@@ -180,4 +178,4 @@ function renderPlanParts() {
   document.querySelectorAll("#pReady [data-plan]").forEach(b => b.onclick = () => { const [id, s] = b.dataset.plan.split(":"); addToPlan(+id, s); });
 }
 
-const costText = cost => cost ? `<span>경험치 ${cost.xp.toLocaleString()}${cost.items.length ? " · " + cost.items.map(([id, n]) => `${esc(itemName(id))} ${n}`).join(" · ") : ""}</span>` : "";
+const costText = cost => cost ? `<span class="cost-ic"><b>${itemIcon(GD.currencyItems.xp, "경험치")}${cost.xp.toLocaleString()}</b>${cost.items.map(([id, n]) => `<b>${itemIcon(id)}×${n}</b>`).join("")}</span>` : "";

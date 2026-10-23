@@ -1,5 +1,5 @@
 // 캐릭터 상세 — 진화 단계별 스탯·능력·본능·진화 재료 + 내 보유 상태
-import { GD, BYID, FORM, esc, clamp, icon, rarBadge, traitChips, view, store, itemName, have, haveXp, ORB_GRADE } from "./common.js";
+import { GD, BYID, FORM, esc, clamp, icon, rarBadge, traitChips, view, store, itemName, itemIcon, have, haveXp, ORB_GRADE } from "./common.js";
 import { openEdit } from "./edit.js";
 import { addToPlan, removeFromPlan, inPlan } from "./plan.js";
 
@@ -314,7 +314,7 @@ function paint(root, c, u) {
   const evo = (title, e, need, step) => e || need != null ? `<div class="panel"><h2>${title}</h2><dl class="kv">
       ${need != null ? `<dt>필요 레벨</dt><dd>${need > 0 ? `Lv ${need}` : "특정 스테이지 클리어"}${o && need > 0 ? owns(need, o.level).replace("보유", "현재") : ""}</dd>` : ""}
       ${e?.xp ? `<dt>경험치</dt><dd>${num(e.xp)} XP${owns(e.xp, haveXp())}</dd>` : ""}
-      ${e?.items?.length ? `<dt>재료</dt><dd>${e.items.map(([id, k]) => `${esc(itemName(id))} ×${k}${owns(k, have(id))}`).join("<br>")}</dd>` : ""}
+      ${e?.items?.length ? `<dt>재료</dt><dd>${e.items.map(([id, k]) => `<span class="item-line">${itemIcon(id)}${esc(itemName(id))} ×${k}${owns(k, have(id))}</span>`).join("")}</dd>` : ""}
     </dl>${e ? `<div style="margin-top:12px"><button class="btn" data-plan="${step}">${inPlan(c.id, step) ? "육성 계획에서 빼기" : "육성 계획에 담기"}</button></div>` : ""}</div>` : "";
 
   const mine = o ? `<dl class="kv">
