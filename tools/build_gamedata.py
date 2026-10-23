@@ -82,8 +82,11 @@ LOCAL_KEY = bytes.fromhex("bea585eb993216ef4dcb88b625c3df98")          # APK 안
 LOCAL_IV = bytes.fromhex("9b13c2121d39f1353a125fed98696649")
 
 
+UNIT_ANIM = re.compile(r"\d{3}_[fcsu]02\.maanim")  # 캐릭 공격 모션 (02 = 공격)
+
+
 class IconPacks:
-    """기기에서 꺼낸 아이콘 팩 묶음. APK의 UnitLocal(기본 리소스) 위에 *UnitServer(업데이트)를 덮어쓴다."""
+    """기기에서 꺼낸 팩 묶음 (아이콘·공격 모션). APK의 *Local(기본 리소스) 위에 *Server(업데이트)를 덮어쓴다."""
 
     def __init__(self, files_dir: str):
         self.index: dict[str, tuple[str, int, int]] = {}
@@ -94,10 +97,10 @@ class IconPacks:
             raw = AES.new(LIST_KEY, AES.MODE_ECB).decrypt(open(lst, "rb").read())
             for line in raw[:-raw[-1]].decode("utf-8", "replace").splitlines()[1:]:
                 name, off, size = line.split(",")[:3]
-                if name.startswith("uni"):
+                if name.startswith("uni") or UNIT_ANIM.fullmatch(name):
                     self.index[name] = (lst[:-5] + ".pack", int(off), int(size))
 
-    def get(self, name: str) -> bytes | None:
+    def get(self, name: str, text: bool = False) -> bytes | None:
         if name not in self.index:
             return None
         pack, off, size = self.index[name]
@@ -105,12 +108,49 @@ class IconPacks:
             self._cache[pack] = open(pack, "rb").read()
         seg = self._cache[pack][off:off + size]
         seg = seg[:len(seg) // 16 * 16]
-        if "Server" in os.path.basename(pack):
-            png = AES.new(SERVER_KEY, AES.MODE_ECB).decrypt(seg)
+        if os.path.basename(pack).startswith("ImageDataLocal"):
+            data = self._cache[pack][off:off + size]  # APK의 ImageDataLocal 은 암호화돼 있지 않다
+        elif "Server" in os.path.basename(pack):
+            data = AES.new(SERVER_KEY, AES.MODE_ECB).decrypt(seg)
         else:
-            png = AES.new(LOCAL_KEY, AES.MODE_CBC, LOCAL_IV).decrypt(seg)
-        end = png.find(b"IEND")
-        return png[:end + 8] if end >= 0 else png
+            data = AES.new(LOCAL_KEY, AES.MODE_CBC, LOCAL_IV).decrypt(seg)
+        if text:  # 텍스트 파일은 뒤에 붙은 패딩 바이트를 뗀다
+            return data[:size].rstrip(bytes(range(17)))
+        end = data.find(b"IEND")
+        return data[:end + 8] if end >= 0 else data
+
+
+def unit_anim(packs: "IconPacks", cid: int, form: int) -> int | None:
+    raw = packs.get(f"{cid:03d}_{'fcsu'[form]}02.maanim", text=True)
+    l = anim_len(raw) if raw else None
+    return l + 1 if l is not None else None  # BCU AnimU.getAtkLen() = anims[2].len + 1
+
+
+def anim_len(raw: bytes) -> int | None:
+    """공격 모션 길이(프레임). BCU util/anim/MaAnim.validate + Part.validate/getMax 와 같은 계산."""
+    lines = [l.strip() for l in raw.decode("utf-8", "replace").splitlines() if l.strip()]
+    try:
+        n, i, best = int(lines[2]), 3, 1
+        for _ in range(n):
+            ints = [int(x) for x in lines[i].split(",")[:5]]
+            cnt = int(lines[i + 1])
+            frames = [int(lines[i + 2 + k].split(",")[0]) for k in range(cnt)]
+            i += 2 + cnt
+            if not frames:
+                continue
+            loop, off = ints[2], 0
+            if frames[0] < 0 or loop != 1:      # 첫 키프레임을 0으로 당긴다
+                off = -frames[0]
+                frames = [f + off for f in frames]
+            fir, mx = frames[0], frames[-1]
+            if loop != -1:
+                m = fir + (mx - fir) * loop - off if loop > 1 else mx - off
+            else:
+                m = mx - min(off, 0)
+            best = max(best, m)
+        return best
+    except (ValueError, IndexError):
+        return None
 
 
 def icon_names(cid: int, form: int, ub: list[int]) -> list[str]:
@@ -126,7 +166,7 @@ def icon_names(cid: int, form: int, ub: list[int]) -> list[str]:
 # ---- 캐릭 상세 (docs/data/units.json) ----
 # unitNNN.csv 열 위치. 0~97은 BCU 기준 + 게임 내 설명문과 대조, 98 이후는 설명문 대조로 찾은 위치
 # (tools 밖 검증: 각 열 값이 있는 형태의 설명문에 해당 능력 단어가 있는지 전수 비교).
-# 여기 없는 능력(영혼 공격·초극 데미지·사도 킬러 등)은 위치를 확인하지 못해 아직 표시하지 않는다.
+# 81(초극 데미지)·116(폭파 무효)·99~104(2·3타 원거리 범위)는 BCU battle/data/DataUnit.java 기준. 영혼 공격·사도 킬러 등은 아직 표시 안 함.
 ABILITY_COLS = [
     # (키, 열, 함께 넣을 값 열들)
     ("strong", 23, []), ("kb", 24, []), ("freeze", 25, [26]), ("slow", 27, [28]), ("resist", 29, []),
@@ -134,6 +174,7 @@ ABILITY_COLS = [
     ("wave", 35, [36]), ("weaken", 37, [38, 39]), ("strengthen", 40, [41]), ("survive", 42, []),
     ("metal", 43, []), ("immWave", 46, []), ("waveBlock", 47, []), ("immKb", 48, []), ("immFreeze", 49, []), ("immSlow", 50, []),
     ("immWeaken", 51, []), ("zombie", 52, []), ("witch", 53, []), ("barrier", 70, []), ("tough", 80, []),
+    ("insane", 81, []), ("immBlast", 116, []),  # BCU DataUnit: 81 AB_MASSIVES(초극 데미지), 116 IMUBLAST
     ("savage", 82, [83]), ("dodge", 84, [85]), ("surge", 86, [87, 88, 89]), ("curse", 92, [93]),
     ("shield", 95, []), ("colossus", 97, []), ("behemoth", 105, [106, 107]), ("conjure", 110, []),
     ("sage", 111, []), ("metalKiller", 112, []), ("explosion", 113, [114]),
@@ -162,6 +203,13 @@ def unit_form(row: list[str]) -> dict:
            "area": cell(row, 12) == 1, "ab": ab}
     if cell(row, 45):  # 원거리 공격: 시작 위치, 폭
         out["ld"] = [cell(row, 44), cell(row, 45)]
+        # 2·3타가 따로 원거리 범위를 가질 때: [사용 여부, 시작, 폭]이 99부터 3칸씩 (BCU DataUnit)
+        lds = [[cell(row, 44), cell(row, 45)]]
+        for i in range(1, len(hits)):
+            b = 99 + (i - 1) * 3
+            lds.append([cell(row, b + 1), cell(row, b + 2)] if cell(row, b) == 1 else lds[0])
+        if len(lds) > 1 and any(l != lds[0] for l in lds[1:]):
+            out["lds"] = lds
     return out
 
 
@@ -283,7 +331,7 @@ def main(argv: list[str] | None = None) -> None:
         })
         units[cid] = {
             "desc": [" ".join(x.strip() for x in expl_rows[f][1:] if x.strip()) for f in range(len(forms))],
-            "forms": [unit_form(stat_rows[f]) for f in range(len(forms))],
+            "forms": [{**unit_form(stat_rows[f]), "anim": unit_anim(packs, cid, f)} for f in range(len(forms))],
             "curve": curves[cid] if cid < len(curves) else [],
             "tf": evolve(ub, 27, 28, used_items) if len(forms) >= 3 else None,
             "ff": evolve(ub, 38, 39, used_items) if len(forms) >= 4 else None,

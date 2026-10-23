@@ -72,6 +72,7 @@ function abilityText(a, traits) {
     case "strong": return `${to}엄청 강하다`;
     case "resist": return `${to}맷집이 좋다`;
     case "massive": return `${to}초 데미지`;
+    case "insane": return `${to}초극 데미지`;
     case "tough": return `${to}초 맷집`;
     case "only": return `공격 타겟 한정 (${traits.join("·") || "지정 속성"}만 공격)`;
     case "kb": return `${to}날려버린다 (${v}%)`;
@@ -202,8 +203,67 @@ function paint(root, c, u) {
   const total = hits.reduce((a, b) => a + b, 0);
   const speed = s.speed + T.speed, kb = s.kb + T.kb, cost = (s.cost - T.cost) * 1.5;
   const respawnF = s.respawn * 2 - T.cd, tbaF = Math.trunc(s.tba * (100 - T.tba) / 100) * 2;
-  const ld = s.ld && (() => { const a = s.ld[0], b = s.ld[0] + s.ld[1]; return `${Math.min(a, b)}~${Math.max(a, b)}`; })();
+  const ldText = ([a, w]) => `${Math.min(a, a + w)}~${Math.max(a, a + w)}`;
+  const ld = s.ld && ldText(s.ld);
+  // 공격 주기 (BCU DefaultData.getItv): 마지막 타 선딜 + max(TBA − 1, 모션 길이 − 마지막 타 선딜). 모션 길이 = getAtkLen()
+  const longPre = Math.max(...s.pre);
+  const cycleF = s.anim ? longPre + Math.max(tbaF - 1, s.anim - longPre) : null;
+  const postF = s.anim ? s.anim - longPre : null;
+  // 쿨타임: 연구력 Lv20+10 · 보물 최대 기준 (BCU Treasure.getFinRes: 29×6 + 300×0.3 = 264F 단축, 최소 60F)
+  const coolF = Math.max(60, respawnF - 264);
+  // DPS는 반올림 전 값으로 범위까지 계산하고 표시할 때 반올림 (나무위키 표기와 같음)
+  const dpsOf = atk => cycleF ? atk * 30 / cycleF : null;
+  const F = f => f == null ? "-" : `${num(f)}<span> (${sec(f)})</span>`;
   const up = (on, why) => on ? ` class="up" title="본능: ${why}"` : "";
+
+  // 나무위키식 스탯 블록: 레벨별 체력·공격력·DPS (+ 엄강·초뎀 등 범위) / 프레임 표 / 타격별 선딜·유효 사거리
+  const statBlock = () => {
+    const has = k => T.ab.some(a => a[0] === k);
+    // 범위 = 보물 없음 ~ 보물 최대 (엄청 강하다 공격 1.5~1.8·받는 데미지 1/2~1/2.5, 초 데미지 3~4, 초극 5~6, 맷집 1/4~1/5, 초맷집 1/6~1/7)
+    const hpMods = [has("strong") && ["엄강", 2, 2.5], has("resist") && ["맷집", 4, 5], has("tough") && ["초맷집", 6, 7]].filter(Boolean);
+    const atkMods = [has("strong") && ["엄강", 1.5, 1.8], has("massive") && ["초뎀", 3, 4], has("insane") && ["초극뎀", 5, 6]].filter(Boolean);
+    const R = v => Math.round(v).toLocaleString();
+    const range = (v, mods) => mods.length ? `<small>(${mods.map(([n, a, b]) => `${n}: ${R(v * a)}~${R(v * b)}`).join(" / ")})</small>` : "";
+    let lvs = [30, 40, 50, 60].filter(l => l <= c.maxLevel);
+    if (lvs.length < 2) lvs = [10, 20, 30, 40, 50].filter(l => l <= c.maxLevel);
+    const rows = lvs.map(l => ({ label: `Lv${l}`, t: l }));
+    if (!lvs.includes(lv + plus) || plus) rows.unshift({ label: `Lv${lv}${plus ? "+" + plus : ""}`, t: lv + plus, sel: true });
+    else rows.find(r => r.t === lv).sel = true;
+    for (const r of rows) {
+      const m = levelMult(u.curve, r.t);
+      r.hp = calcHp(s.hp, m, T.hp);
+      r.atk = s.atk.reduce((a, b) => a + calcAtk(b, m, T.atk), 0);
+      r.dps = dpsOf(r.atk);
+    }
+    const list = (key, mods) => rows.map(r => `<div${r.sel ? ' class="sel"' : ""}><span>${r.label}</span> <b>${r[key] == null ? "-" : R(r[key])}</b>${r[key] == null ? "" : range(r[key], mods)}</div>`).join("");
+    const tal = (on, why) => on ? `<em class="tal-on" title="본능 적용">${why}</em>` : "";
+    const lds = s.lds || (s.ld ? s.atk.map(() => s.ld) : null);
+    return `
+      <div class="nm">
+        <div class="nm-col">
+          <div class="nm-box"><div class="nm-h">체력${tal(T.hp, ` +${T.hp}%`)}</div><div class="nm-rows">${list("hp", hpMods)}</div></div>
+          <div class="nm-box"><div class="nm-h">DPS${tal(T.atk || T.tba, " 본능")}</div><div class="nm-rows">${cycleF ? list("dps", atkMods) : `<div><span>공격 모션 데이터가 없어 계산할 수 없어요</span></div>`}</div></div>
+        </div>
+        <div class="nm-col">
+          <div class="nm-box"><div class="nm-h">공격력${s.atk.length > 1 ? ` (${s.atk.length}회 합계)` : ""}${tal(T.atk, ` +${T.atk}%`)}</div><div class="nm-rows">${list("atk", atkMods)}
+            ${s.atk.length > 1 ? `<div class="sub-hit"><span>타격별 (Lv${lv}${plus ? "+" + plus : ""})</span> ${hits.map(num).join(" + ")}</div>` : ""}</div></div>
+          <table class="nm-hits"><thead><tr>${s.atk.length > 1 ? "<th>타격</th>" : ""}<th>선딜F</th><th>유효 사거리</th></tr></thead><tbody>
+            ${s.pre.map((p, i) => `<tr>${s.atk.length > 1 ? `<td>${i + 1}타</td>` : ""}<td>${F(p)}</td><td>${lds ? ldText(lds[i]) : `~${s.range}`}</td></tr>`).join("")}
+          </tbody></table>
+        </div>
+      </div>
+      <div class="nm-grid">
+        <div${up(T.kb, `넉백 +${T.kb}회`)}><small>히트백</small><b>${kb}</b></div>
+        <div${up(T.speed, `이동 속도 +${T.speed}`)}><small>이동속도</small><b>${speed}</b></div>
+        <div><small>사거리</small><b>${s.range}</b></div>
+        <div${up(T.cost, `코스트 -${num(T.cost * 1.5)}원`)}><small>코스트</small><b>${num(cost)}</b></div>
+        <div${up(T.cd, `재생산 -${T.cd}F`)}><small>쿨타임F</small><b>${F(coolF)}</b></div>
+        <div${up(T.tba, `공격 간격 -${T.tba}%`)}><small>공격빈도F</small><b>${F(cycleF)}</b></div>
+        <div${up(T.tba, `공격 간격 -${T.tba}%`)}><small>공격간격F</small><b>${F(tbaF)}</b></div>
+        <div><small>후딜F</small><b>${F(postF)}</b></div>
+        <div><small>공격 범위</small><b>${s.area ? "범위" : "단일"}${s.ld ? "<span> · 원거리</span>" : ""}</b></div>
+      </div>`;
+  };
 
   const traits = [...new Set([...f.traits, ...T.traits])];
 
@@ -285,22 +345,11 @@ function paint(root, c, u) {
           ${c.talents.length ? (talOk ? `<div class="seg" role="group" aria-label="본능 적용">${[["none", "본능 미적용"], ...(o ? [["mine", "내 본능"]] : []), ["max", "본능 전부 최대"]]
               .map(([k, l]) => `<button data-tal="${k}" aria-pressed="${mode === k}">${l}</button>`).join("")}</div>`
             : `<p class="note" style="margin:0 0 10px">본능은 3진부터 적용돼요.</p>`) : ""}
-          <div class="stat-table">
-            <div${up(T.hp, `체력 +${T.hp}%`)}><small>체력</small><b>${num(hp)}</b></div>
-            <div${up(T.atk, `공격력 +${T.atk}%`)}><small>공격력${hits.length > 1 ? " (합계)" : ""}</small><b>${num(total)}</b>${hits.length > 1 ? `<small>${hits.map(num).join(" + ")}</small>` : ""}</div>
-            <div><small>사거리</small><b>${s.range}</b></div>
-            <div><small>공격 범위</small><b>${s.area ? "범위" : "단일"}</b></div>
-            <div><small>공격 발생</small><b>${sec(s.pre[0])}</b></div>
-            <div${up(T.tba, `공격 간격 -${T.tba}%`)}><small>공격 간격(대기)</small><b>${sec(tbaF)}</b></div>
-            <div${up(T.speed, `이동 속도 +${T.speed}`)}><small>이동 속도</small><b>${speed}</b></div>
-            <div${up(T.kb, `넉백 +${T.kb}회`)}><small>넉백</small><b>${kb}<span>회</span></b></div>
-            <div${up(T.cost, `코스트 -${num(T.cost * 1.5)}원`)}><small>생산 코스트</small><b>${num(cost)}<span>원</span></b></div>
-            <div${up(T.cd, `재생산 -${sec(T.cd)}`)}><small>재생산</small><b>${sec(respawnF)}</b></div>
-          </div>
+          ${statBlock()}
           ${cond.length ? `<div class="cond"><small>상황별 공격력${hits.length > 1 ? " (합계)" : ""}</small>${cond.map(([label, x, v]) =>
             `<div><span>${esc(label)}</span><b>${num(v ?? total * x)}</b></div>`).join("")}</div>` : ""}
           ${orbFx.notes.length ? `<div class="cond"><small>본능옥 효과</small>${orbFx.notes.map(n => `<div><span>${esc(n)}</span></div>`).join("")}</div>` : ""}
-          <p class="note">체력·공격력은 보물 최대 기준이에요. ${talOk && mode !== "none" ? "주황색 칸은 본능으로 바뀐 값이에요. " : ""}연구력에 따른 재생산 단축은 반영하지 않았어요. 공격 간격은 공격 모션 시간을 뺀 대기 시간이에요.</p>
+          <p class="note">체력·공격력은 보물 최대 기준, 괄호 안 엄강·초뎀 등은 보물 없음~최대 범위예요. 쿨타임은 연구력 Lv20+10·보물 최대 기준이고, F는 프레임(30F = 1초)이에요. 공격빈도 = 마지막 타 선딜 + max(공격간격 − 1, 후딜). DPS = 공격력 ÷ 공격빈도. ${talOk && mode !== "none" ? "주황색 칸은 본능으로 바뀐 값이에요." : ""}</p>
         </div>
         ${slots ? `<div class="panel"><h2>본능옥 <span class="ctl">슬롯 ${slots.length}개</span></h2>${orbOk
           ? `<div class="orb-slots">${slots.map((cond, i) => orbSlotHtml(i, cond, orbs[i])).join("")}</div>

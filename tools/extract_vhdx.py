@@ -24,7 +24,8 @@ DEFAULT_OUT = os.path.join(ROOT, "device")
 GAME_DIR = "data/jp.co.ponos.battlecatskr/files"
 APP_DIR = "app/jp.co.ponos.battlecatskr*"  # 설치 폴더 이름 뒤에 임의 문자열이 붙는다
 WANTED = ["SAVE_DATA"]
-PACKS = ["*UnitServer.list", "*UnitServer.pack"]
+# 사이트 데이터 빌드용: 아이콘(UnitServer) + 공격 모션(ImageDataServer, DPS 계산)
+PACKS = ["*UnitServer.list", "*UnitServer.pack", "*ImageDataServer.list", "*ImageDataServer.pack"]
 BLUESTACKS_PROCS = ["HD-Player.exe"]
 
 
@@ -84,7 +85,7 @@ def save_mtime(sz: str, vhdx: str) -> str | None:
 
 
 def extract_apk_icons(sz: str, vhdx: str, out: str) -> None:
-    """설치 APK(split_InstallPack.apk)의 assets/UnitLocal.* — 업데이트 팩에 없는 기본 캐릭 아이콘."""
+    """설치 APK(split_InstallPack.apk)의 assets/UnitLocal.*(기본 캐릭 아이콘), ImageDataLocal.*(기본 캐릭 공격 모션)."""
     with tempfile.TemporaryDirectory() as tmp:
         r = subprocess.run([sz, "e", vhdx, f"-o{tmp}", "-y", "-r", f"{APP_DIR}/split_InstallPack.apk"],
                            capture_output=True, text=True, errors="replace")
@@ -92,7 +93,8 @@ def extract_apk_icons(sz: str, vhdx: str, out: str) -> None:
         if r.returncode != 0 or not os.path.exists(apk):
             print("  (APK 아이콘 팩을 찾지 못했습니다. 업데이트 팩 아이콘만 씁니다)")
             return
-        subprocess.run([sz, "e", apk, f"-o{out}", "-y", "assets/UnitLocal.list", "assets/UnitLocal.pack"],
+        subprocess.run([sz, "e", apk, f"-o{out}", "-y", "assets/UnitLocal.list", "assets/UnitLocal.pack",
+                        "assets/ImageDataLocal.list", "assets/ImageDataLocal.pack"],
                        capture_output=True, check=True)
 
 

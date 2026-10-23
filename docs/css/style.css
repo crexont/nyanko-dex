@@ -207,6 +207,31 @@ dialog.choose small{color:var(--muted)}
 .seg button:last-child{border-right:0}
 .seg button[aria-pressed="true"]{background:var(--chip-on);color:var(--chip-on-ink);font-weight:700}
 .stat-table div.up b{color:var(--accent)}
+
+/* ---- 나무위키식 스탯 블록 ---- */
+.nm{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.nm-col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.nm-box{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.nm-h{background:var(--chip);text-align:center;font-weight:700;font-size:14px;padding:7px 10px}
+.nm-h .tal-on{font-style:normal;font-size:11px;color:var(--accent);margin-left:6px}
+.nm-rows{padding:8px 12px;display:flex;flex-direction:column;gap:3px;font-variant-numeric:tabular-nums}
+.nm-rows>div{font-size:14px;line-height:1.5}
+.nm-rows>div>span{color:var(--muted);display:inline-block;min-width:58px}
+.nm-rows>div small{color:var(--muted);font-size:12.5px;margin-left:4px}
+.nm-rows>div.sel{color:var(--accent)}
+.nm-rows>div.sel>span{color:var(--accent);font-weight:700}
+.nm-rows .sub-hit{font-size:12.5px;color:var(--muted);margin-top:4px;padding-top:6px;border-top:1px dashed var(--line)}
+.nm-hits{width:100%;border-collapse:collapse;border:1px solid var(--line);font-size:13.5px;font-variant-numeric:tabular-nums}
+.nm-hits th{background:var(--chip);font-weight:700;padding:6px 8px}
+.nm-hits td{text-align:center;padding:6px 8px;border-top:1px solid var(--line)}
+.nm-hits td span{color:var(--muted);font-size:12px}
+.nm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-top:12px}
+.nm-grid>div{background:var(--panel);padding:8px 10px;text-align:center}
+.nm-grid small{display:block;color:var(--muted);font-size:12px;background:var(--chip);margin:-8px -10px 6px;padding:5px}
+.nm-grid b{font-size:15px;font-variant-numeric:tabular-nums}
+.nm-grid b span{font-size:12px;font-weight:500;color:var(--muted)}
+.nm-grid div.up b{color:var(--accent)}
+@media (max-width:640px){.nm{grid-template-columns:1fr}}
 .cond{margin-top:12px;border:1px solid var(--line);border-radius:var(--radius)}
 .cond>small{display:block;padding:8px 12px 2px;color:var(--muted);font-size:12px}
 .cond>div{display:flex;justify-content:space-between;gap:12px;padding:6px 12px;font-size:14px}
