@@ -1,6 +1,7 @@
 // 캐릭터 상세 — 진화 단계별 스탯·능력·본능·진화 재료 + 내 보유 상태
-import { BYID, FORM, esc, clamp, icon, rarBadge, traitChips, view, store } from "./common.js";
+import { BYID, FORM, esc, clamp, icon, rarBadge, traitChips, view, store, itemName, have, haveXp } from "./common.js";
 import { openEdit } from "./edit.js";
+import { addToPlan, removeFromPlan, inPlan } from "./plan.js";
 
 let unitsPromise;
 const loadUnits = () => unitsPromise ??= fetch("data/units.json").then(r => {
@@ -198,11 +199,14 @@ function paint(root, c, u) {
   if (ld) abil.unshift(`<li>원거리 공격 (${ld})</li>`);
   if (s.atk.length > 1) abil.push(`<li>${s.atk.length}회 연속 공격</li>`);
 
-  const evo = (title, e, need) => e || need != null ? `<div class="panel"><h2>${title}</h2><dl class="kv">
-      ${need != null ? `<dt>필요 레벨</dt><dd>${need > 0 ? `Lv ${need}` : "특정 스테이지 클리어"}</dd>` : ""}
-      ${e?.xp ? `<dt>경험치</dt><dd>${num(e.xp)} XP</dd>` : ""}
-      ${e?.items?.length ? `<dt>재료</dt><dd>${e.items.map(([n, k]) => `${esc(n)} ×${k}`).join("<br>")}</dd>` : ""}
-    </dl></div>` : "";
+  // 진화 재료 + 내 보유량(재화 정보가 있으면) + 육성 계획 담기
+  const known = !!store.data?.inv;
+  const owns = (n, h) => known ? ` <span class="${h >= n ? "own-ok" : "own-lack"}">(보유 ${h.toLocaleString()}${h < n ? `, ${(n - h).toLocaleString()} 부족` : ""})</span>` : "";
+  const evo = (title, e, need, step) => e || need != null ? `<div class="panel"><h2>${title}</h2><dl class="kv">
+      ${need != null ? `<dt>필요 레벨</dt><dd>${need > 0 ? `Lv ${need}` : "특정 스테이지 클리어"}${o && need > 0 ? owns(need, o.level).replace("보유", "현재") : ""}</dd>` : ""}
+      ${e?.xp ? `<dt>경험치</dt><dd>${num(e.xp)} XP${owns(e.xp, haveXp())}</dd>` : ""}
+      ${e?.items?.length ? `<dt>재료</dt><dd>${e.items.map(([id, k]) => `${esc(itemName(id))} ×${k}${owns(k, have(id))}`).join("<br>")}</dd>` : ""}
+    </dl>${e ? `<div style="margin-top:12px"><button class="btn" data-plan="${step}">${inPlan(c.id, step) ? "육성 계획에서 빼기" : "육성 계획에 담기"}</button></div>` : ""}</div>` : "";
 
   const mine = o ? `<dl class="kv">
         <dt>진화</dt><dd>${FORM[o.form]} · ${esc(c.forms[Math.min(o.form, c.forms.length - 1)].name)}</dd>
@@ -259,8 +263,8 @@ function paint(root, c, u) {
       </div>
       <div>
         <div class="panel mine"><h2>내 보유 상태</h2>${mine}</div>
-        ${c.forms.length >= 3 ? evo("3진 진화", u.tf, c.tfLevel) : ""}
-        ${c.forms.length >= 4 ? evo("4진 진화", u.ff, c.ffLevel) : ""}
+        ${c.forms.length >= 3 ? evo("3진 진화", u.tf, c.tfLevel, "tf") : ""}
+        ${c.forms.length >= 4 ? evo("4진 진화", u.ff, c.ffLevel, "ff") : ""}
         <div class="panel"><h2>기본 정보</h2><dl class="kv">
           <dt>레어도</dt><dd>${rarBadge(c)}</dd>
           <dt>최대 레벨</dt><dd>${c.maxLevel}${c.maxPlus ? ` + ${c.maxPlus}` : ""}</dd>
@@ -272,6 +276,8 @@ function paint(root, c, u) {
   document.title = `${f.name} - 냥코위키`;
   root.querySelectorAll("[data-form]").forEach(b => b.onclick = () => { state.form = +b.dataset.form; paint(root, c, u); });
   root.querySelectorAll("[data-tal]").forEach(b => b.onclick = () => { state.tal = b.dataset.tal; paint(root, c, u); });
+  root.querySelectorAll("[data-plan]").forEach(b => b.onclick = () =>
+    inPlan(c.id, b.dataset.plan) ? removeFromPlan(c.id, b.dataset.plan) : addToPlan(c.id, b.dataset.plan));
   const onLv = () => {
     state.level = clamp(parseInt(root.querySelector("#sLv").value) || 1, 1, c.maxLevel);
     state.plus = c.maxPlus ? clamp(parseInt(root.querySelector("#sPlus").value) || 0, 0, c.maxPlus) : 0;

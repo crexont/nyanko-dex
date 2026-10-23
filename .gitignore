@@ -16,3 +16,4 @@ __pycache__/
 build/
 CLAUDE.md
 /bcsfe_data/
+docs/_test*.json

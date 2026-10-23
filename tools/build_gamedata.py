@@ -165,9 +165,11 @@ def unit_form(row: list[str]) -> dict:
     return out
 
 
-def evolve(ub: list[int], xp_col: int, items_col: int, item_names: list[str]) -> dict | None:
-    items = [(ub[items_col + i * 2], ub[items_col + i * 2 + 1]) for i in range(5)]
-    items = [[item_names[i] if i < len(item_names) else f"아이템 {i}", n] for i, n in items if n > 0]
+def evolve(ub: list[int], xp_col: int, items_col: int, used: set[int]) -> dict | None:
+    """진화 재료: {"xp", "items": [[아이템 ID, 개수], ...]}. 이름은 gamedata.js의 items에서 찾는다."""
+    items = [[ub[items_col + i * 2], ub[items_col + i * 2 + 1]] for i in range(5)]
+    items = [it for it in items if it[1] > 0]
+    used.update(i for i, _ in items)
     if not items and ub[xp_col] <= 0:
         return None
     return {"xp": ub[xp_col], "items": items}
@@ -207,6 +209,13 @@ def main(argv: list[str] | None = None) -> None:
         talent_vals[r[0]] = {r[i]: [r[i + 1], *r[i + 2:i + 10]] for i in range(2, len(r) - 13, 14) if r[i]}
 
     item_names = [l.split("|")[0].strip() for l in read(os.path.join(R, "GatyaitemName.csv"))]
+    # 세이브의 catfruit 리스트 순서 = Matatabi.tsv 행 순서 (개다래 씨앗·열매, 수석). [아이템 ID, 씨앗 여부, 그룹]
+    matatabi = [[int(r[0]), r[1] == "1", int(r[2])]
+                for r in (l.split("\t") for l in read(os.path.join(D, "Matatabi.tsv"))[1:]) if r and r[0].strip()]
+    # 세이브의 catseyes 리스트 순서 = Gatyaitembuy.csv 에서 category 5 를 index 순으로 (아이템 ID = 행 번호)
+    buy = [l.split(",") for l in read(os.path.join(D, "Gatyaitembuy.csv"))[1:]]
+    catseyes = [i for _, i in sorted((int(r[7]), i) for i, r in enumerate(buy) if len(r) > 7 and r[6].strip() == "5")]
+    used_items: set[int] = {m[0] for m in matatabi} | set(catseyes)
     curves = [[int(x) for x in l.split(",") if x.strip()] for l in read(os.path.join(D, "unitlevel.csv"))]
     units: dict[int, dict] = {}
 
@@ -254,20 +263,24 @@ def main(argv: list[str] | None = None) -> None:
             # 진화 아이템 ID가 0이면 해당 진화 없음. 요구 레벨: 25/26열(열매 진화), 없으면 20열(기본캐릭), 0=스테이지 해금 등
             "tfLevel": max(ub[25], ub[20], 0) if len(forms) >= 3 and ub[23] > 0 else None,
             "ffLevel": max(ub[26], 0) if len(forms) >= 4 and ub[24] > 0 else None,
+            # 진화 비용 (내 도감의 "바로 진화 가능" 판정·육성 계획용, 상세 데이터 없이 쓰려고 목록에도 둔다)
+            "tfCost": evolve(ub, 27, 28, used_items) if len(forms) >= 3 and ub[23] > 0 else None,
+            "ffCost": evolve(ub, 38, 39, used_items) if len(forms) >= 4 and ub[24] > 0 else None,
             "talents": talents.get(cid, []),
         })
         units[cid] = {
             "desc": [" ".join(x.strip() for x in expl_rows[f][1:] if x.strip()) for f in range(len(forms))],
             "forms": [unit_form(stat_rows[f]) for f in range(len(forms))],
             "curve": curves[cid] if cid < len(curves) else [],
-            "tf": evolve(ub, 27, 28, item_names) if len(forms) >= 3 else None,
-            "ff": evolve(ub, 38, 39, item_names) if len(forms) >= 4 else None,
+            "tf": evolve(ub, 27, 28, used_items) if len(forms) >= 3 else None,
+            "ff": evolve(ub, 38, 39, used_items) if len(forms) >= 4 else None,
             "talentDesc": talent_desc.get(cid, {}),
             "talentVals": talent_vals.get(cid, {}),
         }
 
     out = {"version": data_version, "builtFor": args.version, "rarities": RARITY, "traits": list(TRAIT_COLS.values()),
-           "cats": cats}
+           "items": {i: item_names[i] if i < len(item_names) else f"아이템 {i}" for i in sorted(used_items)},
+           "matatabi": matatabi, "catseyes": catseyes, "cats": cats}
     with open(os.path.join(SITE, "gamedata.js"), "w", encoding="utf-8") as f:
         f.write("window.GAMEDATA = ")
         json.dump(out, f, ensure_ascii=False, separators=(",", ":"))

@@ -48,6 +48,14 @@ def main(argv: list[str] | None = None) -> None:
         "gameVersion": s.game_version.to_string(),
         "catfood": s.catfood,
         "xp": s.xp,
+        # 재화·재료 (v2.0~). 개다래·수석·캐츠아이는 세이브 순서 그대로 내보내고 이름은 사이트(gamedata.js)가 붙인다
+        # → 추출 도구는 게임 데이터를 내려받을 필요가 없다.
+        "currency": {"xp": s.xp, "np": s.np, "catfood": s.catfood,
+                     "normalTickets": s.normal_tickets, "rareTickets": s.rare_tickets,
+                     "platinumTickets": s.platinum_tickets, "legendTickets": s.legend_tickets},
+        "catfruit": list(s.catfruit),
+        "catseyes": list(s.catseyes),
+        "orbs": {str(i): o.value for i, o in s.talent_orbs.orbs.items()},
         "cats": cats,
     }
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)

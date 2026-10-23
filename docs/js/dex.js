@@ -53,7 +53,7 @@ function refresh() {
 function buildFilters() {
   const re = () => { buildFilters(); renderList(); };
   chips(document.getElementById("dOwn"), [["owned", "보유"], ["unowned", "미보유"], ["all", "전체"]], v => ui.own === v, v => { ui.own = v; re(); });
-  chips(document.getElementById("dTodo"), [["tf", "3진 가능·미진화"], ["ff", "4진 가능·미진화"], ["talent", "본능 미해방"], ["talentPart", "본능 미완료"], ["lv", "레벨 미만렙"]],
+  chips(document.getElementById("dTodo"), [["ready", "지금 바로 진화 가능"], ["tf", "3진 레벨 충족"], ["ff", "4진 레벨 충족"], ["talent", "본능 미해방"], ["talentPart", "본능 미완료"], ["lv", "레벨 미만렙"]],
     v => ui.todo.has(v), v => { toggle(ui.todo, v); re(); });
   chips(document.getElementById("dRar"), GD.rarities.map((r, i) => [i, r]), v => ui.rar.has(v), v => { toggle(ui.rar, v); re(); });
   chips(document.getElementById("dTrait"), GD.traits.map(t => [t, t]), v => ui.trait.has(v), v => { toggle(ui.trait, v); re(); });
@@ -66,6 +66,7 @@ function matches(v) {
   if (ui.rar.size && !ui.rar.has(c.rarity)) return false;
   for (const t of ui.trait) if (!v.traits.has(t)) return false;
   for (const t of ui.todo) {
+    if (t === "ready" && !(v.tfReady || v.ffReady)) return false;
     if (t === "tf" && !v.tfTodo) return false;
     if (t === "ff" && !v.ffTodo) return false;
     if (t === "talent" && !v.talentNone) return false;
@@ -83,8 +84,7 @@ function card(v) {
   const { c, o, fi } = v;
   const pct = o ? Math.round(v.lvTotal / v.maxLv * 100) : 0, isMax = o && v.lvTotal >= v.maxLv;
   const badges = [rarBadge(c), o && `<span class="form">${FORM[o.form]}</span>`,
-    v.tfTodo && `<span class="tag todo">3진 가능${c.tfLevel > 0 ? ` · Lv${c.tfLevel}` : ""}</span>`,
-    v.ffTodo && `<span class="tag todo">4진 가능</span>`].filter(Boolean).join("");
+    evoTag("3진", v.tf, c.tfLevel), evoTag("4진", v.ff, c.ffLevel)].filter(Boolean).join("");
   const lv = o ? `<div class="lvline"><span class="lv${isMax ? " max" : ""}">Lv ${o.level}${o.plus ? `<em>+${o.plus}</em>` : ""}</span>
       <span class="lvmax">/ ${c.maxLevel}${c.maxPlus ? "+" + c.maxPlus : ""}</span></div>
       <div class="bar${isMax ? " max" : ""}"><i style="width:${pct}%"></i></div>`
@@ -104,6 +104,15 @@ function card(v) {
   return `<a class="card${o ? "" : " unowned"}" href="#/cat/${c.id}">${icon(c, fi)}<div class="body">
     <div class="title"><span class="name" title="${esc(c.forms.map(f => f.name).join(" → "))}">${esc(c.forms[fi].name)}</span><span class="cid">#${c.id}</span></div>
     <div class="badges">${badges}</div>${lv}${tal}${traitChips(v.traits)}</div></a>`;
+}
+
+// 진화 태그: 바로 가능(초록) / 재료 부족(주황, 부족분은 마우스 올리면) / 레벨 충족(재화 정보 없음·스테이지 진화)
+function evoTag(label, e, need) {
+  if (!e?.levelOk) return "";
+  if (e.ok) return `<span class="tag ready">${label} 바로 가능</span>`;
+  if (e.stageOnly) return `<span class="tag todo" title="열매가 아니라 스테이지 클리어 등으로 진화">${label} 가능 · 스테이지</span>`;
+  if (e.known) return `<span class="tag todo" title="부족: ${esc(e.short.map(([n, k]) => `${n} ${k.toLocaleString()}`).join(", "))}">${label} · 재료 부족 ${e.short.length}종</span>`;
+  return `<span class="tag todo">${label} 가능${need > 0 ? ` · Lv${need}` : ""}</span>`;
 }
 
 function welcome() {
@@ -148,11 +157,16 @@ function renderHeader() {
   const f = [0, 1, 2, 3].map(i => mine.filter(v => v.o.form === i).length);
   const stat = (label, val, hot) => `<div class="stat${hot ? " hot" : ""}"><small>${label}</small><b>${val}</b></div>`;
   const tf = mine.filter(v => v.tfTodo).length, tn = mine.filter(v => v.talentNone).length;
+  const ready = mine.filter(v => v.tfReady || v.ffReady).length, inv = store.data.inv;
+  const cur = inv?.currency || {};
   st.innerHTML = [
     stat("보유", `${mine.length}<span> / ${GD.cats.length}</span>`),
     stat("진화", `${f[0]}<span> · </span>${f[1]}<span> · </span>${f[2]}${f[3] ? `<span> · </span>${f[3]}` : ""}<span> (1·2·3${f[3] ? "·4" : ""}진)</span>`),
-    stat("3진 가능", tf, tf > 0),
+    inv ? stat("지금 바로 진화", ready, ready > 0) : stat("3진 레벨 충족", tf, tf > 0),
     stat("본능 미해방", tn, tn > 0),
-    m.catfood != null && stat("캣푸드 (세이브 기준)", Number(m.catfood).toLocaleString()),
+    inv && stat("경험치", (cur.xp ?? 0).toLocaleString()),
+    inv && stat("NP", (cur.np ?? 0).toLocaleString()),
+    stat("캣푸드", Number(cur.catfood ?? m.catfood ?? 0).toLocaleString()),
+    `<a class="stat link" href="#/plan"><small>${inv ? "보유 재료 · 육성 계획" : "재화·재료 입력"}</small><b>열기 →</b></a>`,
   ].filter(Boolean).join("");
 }
