@@ -25,12 +25,22 @@ const sec = frames => { const s = (frames / 30).toFixed(2).replace(/\.?0+$/, "")
 const num = n => Math.floor(n).toLocaleString();
 
 // 레벨 배율: 레벨이 1 오를 때마다 기본값의 curve[(레벨)/10]% 만큼 오른다 (unitlevel.csv)
+// 게임과 같은 반올림·버림 순서를 위해 BCU(util/unit/UnitLevel.getMult, battle/entity/Entity, AtkModelEntity)를
+// 그대로 따른다. 레벨 배율은 Java float(32비트)로 계산되므로 Math.fround로 맞춘다.
+const f32 = Math.fround;
 function levelMult(curve, total) {
-  let m = 1;
-  for (let l = 1; l < total; l++) m += (curve[Math.min(Math.floor(l / 10), curve.length - 1)] ?? 0) / 100;
-  return m;
+  let dec = total, d = f32(1 - f32((curve[0] ?? 0) * f32(0.01)));
+  for (const mul of curve) {
+    if (dec >= 10) { d = f32(d + f32(mul * f32(0.1))); dec -= 10; }
+    else { d = f32(d + f32(mul * dec * f32(0.01))); break; }
+  }
+  return d;
 }
-const TREASURE = 2.5;  // 보물 최대
+const TREASURE = f32(2.5);  // 보물 최대 (1 + 300×0.005)
+// 체력: trunc( trunc( round(기본×레벨) × 보물 ) × 본능 )
+const calcHp = (base, mult, talentPct) => Math.trunc(Math.trunc(f32(Math.round(f32(base * mult)) * TREASURE)) * (1 + talentPct * 0.01));
+// 공격력(한 타): trunc( 본능 × trunc( round(기본×레벨) × 보물 ) )
+const calcAtk = (base, mult, talentPct) => Math.trunc((1 + talentPct * 0.01) * Math.trunc(f32(Math.round(f32(base * mult)) * TREASURE)));
 
 function abilityText(a, traits) {
   const [k, v, x, y, z] = a, to = traits.length ? `${traits.join("·")}에게 ` : "";
@@ -163,8 +173,8 @@ function paint(root, c, u) {
   const T = applyTalents(c, u, s, levels);
 
   const mult = levelMult(u.curve, lv + plus);
-  const hp = Math.floor(s.hp * mult * TREASURE * (1 + T.hp / 100));
-  const hits = s.atk.map(a => Math.floor(a * mult * TREASURE * (1 + T.atk / 100)));
+  const hp = calcHp(s.hp, mult, T.hp);
+  const hits = s.atk.map(a => calcAtk(a, mult, T.atk));
   const total = hits.reduce((a, b) => a + b, 0);
   const speed = s.speed + T.speed, kb = s.kb + T.kb, cost = (s.cost - T.cost) * 1.5;
   const respawnF = s.respawn * 2 - T.cd, tbaF = Math.trunc(s.tba * (100 - T.tba) / 100) * 2;
