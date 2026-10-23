@@ -1,0 +1,4 @@
+# GitHub 언어 통계: docs/ 는 문서가 아니라 사이트 코드다. 게임 데이터 파일은 생성물이라 뺀다.
+docs/** linguist-documentation=false
+docs/gamedata.js linguist-generated=true
+docs/data/** linguist-generated=true
