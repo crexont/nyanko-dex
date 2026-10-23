@@ -1,9 +1,9 @@
 """추출 도구 배포용 zip 만들기: PyInstaller(onedir) + 7-Zip 동봉. (도감 웹페이지는 docs/ → GitHub Pages)
 
 사용: python tools/package.py [--version v0.1.0] [--7zip "C:\\Program Files\\7-Zip"]
-결과: build/NyankoDex-<version>-win64.zip
-  NyankoDex/
-    NyankoDex.exe, _internal/   (Python + bcsfe 포함)
+결과: build/NyankoWiki-<version>-win64.zip
+  NyankoWiki/
+    NyankoWiki.exe, _internal/   (Python + bcsfe 포함)
     7z/7z.exe, 7z.dll, License.txt
     사용법.txt, LICENSE.txt
 """
@@ -17,17 +17,17 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BUILD = os.path.join(ROOT, "build")
-NAME = "NyankoDex"
+NAME = "NyankoWiki"
 
-HOWTO = """냥코 도감 추출 도구 (비공식, 읽기 전용)
+HOWTO = """냥코위키 추출 도구 (비공식, 읽기 전용)
 
-도감 사이트: https://crexont.github.io/nyanko-dex/
+냥코위키: https://crexont.github.io/nyanko-wiki/
 
 1. 블루스택 5에서 냥코대전쟁(한국판)에 계정을 옮기고 게임을 한 번 실행합니다.
 2. 블루스택을 완전히 종료합니다 (트레이 아이콘까지).
-3. NyankoDex.exe 를 더블클릭합니다.
-   → 이 폴더에 "냥코_세이브.json"이 만들어지고, 도감 사이트가 열립니다.
-4. 사이트에서 [세이브 불러오기]로 냥코_세이브.json 을 열거나 끌어다 놓습니다.
+3. NyankoWiki.exe 를 더블클릭합니다.
+   → 이 폴더에 "냥코_세이브.json"이 만들어지고, 냥코위키가 열립니다.
+4. 냥코위키 [내 도감]에서 [세이브 불러오기]로 냥코_세이브.json 을 열거나 끌어다 놓습니다.
 
 처음 실행할 때 "Windows의 PC 보호" 창이 뜨면 [추가 정보] → [실행]을 누르세요.
 게임을 더 진행했으면 2, 3, 4를 다시 하면 됩니다. 사이트에서 직접 고친 내용은 브라우저에 저장됩니다.

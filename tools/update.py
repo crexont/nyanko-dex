@@ -1,4 +1,4 @@
-"""추출 도구(NyankoDex.exe)의 진입점.
+"""추출 도구(NyankoWiki.exe)의 진입점.
 블루스택 Data.vhdx 추출 → 냥코_세이브.json 저장 → 도감 사이트 열기 + 파일 위치 보여주기
 
 사용: python tools/update.py [--instance Pie64] [--no-extract] [--no-open]
@@ -12,7 +12,7 @@ import export_save
 import extract_vhdx
 from common import FROZEN, ROOT
 
-SITE_URL = "https://crexont.github.io/nyanko-dex/"
+SITE_URL = "https://crexont.github.io/nyanko-wiki/#/dex"  # 내 도감 페이지로 바로
 OUT = os.path.join(ROOT, "냥코_세이브.json")
 
 
@@ -34,7 +34,7 @@ def main() -> None:
     log("[2/2] 세이브 → 냥코_세이브.json")
     export_save.main(["-o", OUT])
 
-    log("\n완료! 도감 사이트에서 [세이브 불러오기]로 이 파일을 열거나 끌어다 놓으세요:")
+    log("\n완료! 냥코위키 내 도감에서 [세이브 불러오기]로 이 파일을 열거나 끌어다 놓으세요:")
     log(f"  {OUT}")
     if not args.no_open:
         os.startfile(SITE_URL)  # https 주소라 .html 연결 프로그램과 상관없이 기본 브라우저로 열린다

@@ -1,6 +1,6 @@
 # 개인 데이터 — 절대 올리지 않음 (세이브, 계정 관련 파일)
-device/
-data/
+/device/
+/data/
 jp.co.ponos.battlecatskr/
 *SAVE_DATA*
 *세이브*.json

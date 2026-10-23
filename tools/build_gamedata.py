@@ -122,6 +122,56 @@ def icon_names(cid: int, form: int, ub: list[int]) -> list[str]:
     return names
 
 
+# ---- 캐릭 상세 (docs/data/units.json) ----
+# unitNNN.csv 열 위치. 0~97은 BCU 기준 + 게임 내 설명문과 대조, 98 이후는 설명문 대조로 찾은 위치
+# (tools 밖 검증: 각 열 값이 있는 형태의 설명문에 해당 능력 단어가 있는지 전수 비교).
+# 여기 없는 능력(영혼 공격·초극 데미지·사도 킬러 등)은 위치를 확인하지 못해 아직 표시하지 않는다.
+ABILITY_COLS = [
+    # (키, 열, 함께 넣을 값 열들)
+    ("strong", 23, []), ("kb", 24, []), ("freeze", 25, [26]), ("slow", 27, [28]), ("resist", 29, []),
+    ("massive", 30, []), ("crit", 31, []), ("only", 32, []), ("money", 33, []), ("base", 34, []),
+    ("wave", 35, [36]), ("weaken", 37, [38, 39]), ("strengthen", 40, [41]), ("survive", 42, []),
+    ("metal", 43, []), ("immWave", 46, []), ("waveBlock", 47, []), ("immKb", 48, []), ("immFreeze", 49, []), ("immSlow", 50, []),
+    ("immWeaken", 51, []), ("zombie", 52, []), ("witch", 53, []), ("barrier", 70, []), ("tough", 80, []),
+    ("savage", 82, [83]), ("dodge", 84, [85]), ("surge", 86, [87, 88, 89]), ("curse", 92, [93]),
+    ("shield", 95, []), ("colossus", 97, []), ("behemoth", 105, [106, 107]), ("conjure", 110, []),
+    ("sage", 111, []), ("metalKiller", 112, []), ("explosion", 113, [114]),
+]
+MINI_WAVE, MINI_SURGE = 94, 108
+
+
+def cell(row: list[str], c: int) -> int:
+    v = row[c].strip() if len(row) > c else ""
+    return int(v) if v.lstrip("-").isdigit() else 0
+
+
+def unit_form(row: list[str]) -> dict:
+    hits = [cell(row, 3)] + [cell(row, c) for c in (59, 60) if cell(row, c) > 0]
+    pre = [cell(row, 13), cell(row, 61), cell(row, 62)][:len(hits)]
+    ab = []
+    for key, c, extra in ABILITY_COLS:
+        if cell(row, c) > 0:
+            if key == "wave" and cell(row, MINI_WAVE):
+                key = "miniWave"
+            if key == "surge" and cell(row, MINI_SURGE):
+                key = "miniSurge"
+            ab.append([key, cell(row, c), *[cell(row, e) for e in extra]])
+    out = {"hp": cell(row, 0), "kb": cell(row, 1), "speed": cell(row, 2), "atk": hits, "pre": pre,
+           "tba": cell(row, 4), "range": cell(row, 5), "cost": cell(row, 6), "respawn": cell(row, 7),
+           "area": cell(row, 12) == 1, "ab": ab}
+    if cell(row, 45):  # 원거리 공격: 시작 위치, 폭
+        out["ld"] = [cell(row, 44), cell(row, 45)]
+    return out
+
+
+def evolve(ub: list[int], xp_col: int, items_col: int, item_names: list[str]) -> dict | None:
+    items = [(ub[items_col + i * 2], ub[items_col + i * 2 + 1]) for i in range(5)]
+    items = [[item_names[i] if i < len(item_names) else f"아이템 {i}", n] for i, n in items if n > 0]
+    if not items and ub[xp_col] <= 0:
+        return None
+    return {"xp": ub[xp_col], "items": items}
+
+
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--files", default=DEFAULT_FILES)
@@ -137,6 +187,7 @@ def main(argv: list[str] | None = None) -> None:
         skill_desc[int(tid)] = text.strip()
 
     talents: dict[int, list[dict]] = {}
+    talent_desc: dict[int, dict[int, str]] = {}
     for line in read(os.path.join(D, "SkillAcquisition.csv"))[1:]:
         r = [int(x) for x in line.split(",") if x.strip()]
         lst = []
@@ -148,6 +199,12 @@ def main(argv: list[str] | None = None) -> None:
             lst.append({"id": ability, "name": talent_name(desc), "max": max(max_lv, 1),
                         "ultra": limit == 1, "trait": talent_trait(desc)})
         talents[r[0]] = lst
+        talent_desc[r[0]] = {r[i]: skill_desc.get(r[i + 10], "").replace("<br>", " ")
+                             for i in range(2, len(r) - 13, 14) if r[i]}
+
+    item_names = [l.split("|")[0].strip() for l in read(os.path.join(R, "GatyaitemName.csv"))]
+    curves = [[int(x) for x in l.split(",") if x.strip()] for l in read(os.path.join(D, "unitlevel.csv"))]
+    units: dict[int, dict] = {}
 
     packs = IconPacks(args.files)
     icon_dir = os.path.join(SITE, "icons")
@@ -162,7 +219,8 @@ def main(argv: list[str] | None = None) -> None:
         stats = os.path.join(D, f"unit{cid + 1:03d}.csv")
         if not os.path.exists(expl) or not os.path.exists(stats):
             continue
-        names = [l.split("|")[0].strip() for l in read(expl)]
+        expl_rows = [l.split("|") for l in read(expl)]
+        names = [r[0].strip() for r in expl_rows]
         if not names or DUMMY_NAME.fullmatch(names[0]):
             continue  # "730_1" 같은 미출시 더미
         stat_rows = [l.split("//")[0].split(",") for l in read(stats) if l.strip()]
@@ -194,6 +252,14 @@ def main(argv: list[str] | None = None) -> None:
             "ffLevel": max(ub[26], 0) if len(forms) >= 4 and ub[24] > 0 else None,
             "talents": talents.get(cid, []),
         })
+        units[cid] = {
+            "desc": [" ".join(x.strip() for x in expl_rows[f][1:] if x.strip()) for f in range(len(forms))],
+            "forms": [unit_form(stat_rows[f]) for f in range(len(forms))],
+            "curve": curves[cid] if cid < len(curves) else [],
+            "tf": evolve(ub, 27, 28, item_names) if len(forms) >= 3 else None,
+            "ff": evolve(ub, 38, 39, item_names) if len(forms) >= 4 else None,
+            "talentDesc": talent_desc.get(cid, {}),
+        }
 
     out = {"version": data_version, "builtFor": args.version, "rarities": RARITY, "traits": list(TRAIT_COLS.values()),
            "cats": cats}
@@ -201,6 +267,9 @@ def main(argv: list[str] | None = None) -> None:
         f.write("window.GAMEDATA = ")
         json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
         f.write(";\n")
+    os.makedirs(os.path.join(SITE, "data"), exist_ok=True)
+    with open(os.path.join(SITE, "data", "units.json"), "w", encoding="utf-8") as f:
+        json.dump(units, f, ensure_ascii=False, separators=(",", ":"))
     print(f"캐릭 {len(cats)}종, 아이콘 {n_icons}개, 본능 보유 캐릭 {sum(1 for c in cats if c['talents'])}종")
 
 

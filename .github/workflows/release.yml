@@ -35,7 +35,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: NyankoDex
+          name: NyankoWiki
           path: build/*.zip
 
       - name: Create release
