@@ -217,8 +217,9 @@ dialog.choose small{color:var(--muted)}
 .stat-table div.up b{color:var(--accent)}
 
 /* ---- 나무위키식 스탯 블록 ---- */
-.nm{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.nm-col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.nm{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+.nm>*{min-width:0}
+.nm-box.wide{grid-column:1/-1}
 .nm-box{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
 .nm-h{background:var(--chip);text-align:center;font-weight:700;font-size:14px;padding:7px 10px}
 .nm-h .tal-on{font-style:normal;font-size:11px;color:var(--accent);margin-left:6px}
@@ -233,13 +234,17 @@ dialog.choose small{color:var(--muted)}
 .nm-hits th{background:var(--chip);font-weight:700;padding:6px 8px}
 .nm-hits td{text-align:center;padding:6px 8px;border-top:1px solid var(--line)}
 .nm-hits td span{color:var(--muted);font-size:12px}
-.nm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-top:12px}
+.nm-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-top:12px}
 .nm-grid>div{background:var(--panel);padding:8px 10px;text-align:center}
 .nm-grid small{display:block;color:var(--muted);font-size:12px;background:var(--chip);margin:-8px -10px 6px;padding:5px}
 .nm-grid b{font-size:15px;font-variant-numeric:tabular-nums}
 .nm-grid b span{font-size:12px;font-weight:500;color:var(--muted)}
 .nm-grid div.up b{color:var(--accent)}
-@media (max-width:640px){.nm{grid-template-columns:1fr}}
+.calc-note{margin-top:12px}
+.calc-note summary{cursor:pointer;color:var(--muted);font-size:12.5px;width:max-content}
+.calc-note summary:hover{color:var(--ink)}
+.calc-note .note{margin-top:6px}
+@media (max-width:640px){.nm{grid-template-columns:1fr}.nm-grid{grid-template-columns:repeat(2,1fr)}}
 .cond{margin-top:12px;border:1px solid var(--line);border-radius:var(--radius)}
 .cond>small{display:block;padding:8px 12px 2px;color:var(--muted);font-size:12px}
 .cond>div{display:flex;justify-content:space-between;gap:12px;padding:6px 12px;font-size:14px}
