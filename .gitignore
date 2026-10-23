@@ -3,11 +3,9 @@ device/
 data/
 jp.co.ponos.battlecatskr/
 *SAVE_DATA*
-app/save.js
+*세이브*.json
 
-# 게임 리소스 — 각자 PC에서 tools/build_gamedata.py 로 생성 (재배포하지 않음)
-app/gamedata.js
-app/icons/
+# 원본 게임 팩 (사이트용 docs/gamedata.js, docs/icons/ 는 tools/build_gamedata.py 로 만들어 커밋)
 *.pack
 *.list
 

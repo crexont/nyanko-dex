@@ -1,39 +1,23 @@
-"""원클릭 갱신: 블루스택 Data.vhdx 추출 → (필요하면) 게임데이터 빌드 → 세이브 JSON → 웹앱 열기
-배포판 exe(NyankoDex.exe)의 진입점이기도 하다.
+"""추출 도구(NyankoDex.exe)의 진입점.
+블루스택 Data.vhdx 추출 → 냥코_세이브.json 저장 → 도감 사이트 열기 + 파일 위치 보여주기
 
 사용: python tools/update.py [--instance Pie64] [--no-extract] [--no-open]
 """
 import argparse
-import glob
-import json
 import os
+import subprocess
 import sys
 
-import build_gamedata
 import export_save
 import extract_vhdx
 from common import FROZEN, ROOT
 
-DEVICE = os.path.join(ROOT, "device")
-GAMEDATA = os.path.join(ROOT, "app", "gamedata.js")
+SITE_URL = "https://crexont.github.io/nyanko-dex/"
+OUT = os.path.join(ROOT, "냥코_세이브.json")
 
 
 def log(msg: str) -> None:
     print(msg, flush=True)
-
-
-def built_for() -> str | None:
-    """현재 gamedata.js 가 어느 게임 버전용으로 빌드됐는지."""
-    try:
-        with open(GAMEDATA, encoding="utf-8") as f:
-            return json.loads(f.read().split("=", 1)[1].rstrip().rstrip(";")).get("builtFor")
-    except (OSError, ValueError, IndexError):
-        return None
-
-
-def packs_newer() -> bool:
-    packs = glob.glob(os.path.join(DEVICE, "*Server.pack"))
-    return bool(packs) and max(map(os.path.getmtime, packs)) > os.path.getmtime(GAMEDATA)
 
 
 def main() -> None:
@@ -44,23 +28,17 @@ def main() -> None:
     args = ap.parse_args()
 
     if not args.no_extract:
-        log("[1/3] 블루스택에서 세이브 추출")
+        log("[1/2] 블루스택에서 세이브 추출")
         extract_vhdx.main(["--instance", args.instance] if args.instance else [])
 
-    log("[2/3] 세이브 → JSON")
-    export_save.main(["--js", os.path.join(ROOT, "app", "save.js")])
-    with open(os.path.join(ROOT, "data", "save.json"), encoding="utf-8") as f:
-        version = json.load(f)["gameVersion"]
+    log("[2/2] 세이브 → 냥코_세이브.json")
+    export_save.main(["-o", OUT])
 
-    if built_for() != version or packs_newer():
-        log(f"[3/3] 게임 데이터 빌드 (v{version}) - 처음엔 다운로드 때문에 1, 2분 걸립니다")
-        build_gamedata.main(["--version", version])
-    else:
-        log(f"[3/3] 게임 데이터 최신 (v{version})")
-
+    log("\n완료! 도감 사이트에서 [세이브 불러오기]로 이 파일을 열거나 끌어다 놓으세요:")
+    log(f"  {OUT}")
     if not args.no_open:
-        os.startfile(os.path.join(ROOT, "app", "index.html"))
-        log("완료! 브라우저에서 도감이 열립니다.")
+        os.startfile(SITE_URL)  # https 주소라 .html 연결 프로그램과 상관없이 기본 브라우저로 열린다
+        subprocess.Popen(["explorer", "/select,", OUT])  # 파일을 바로 끌어다 놓을 수 있게 탐색기에서 표시
 
 
 def run() -> int:

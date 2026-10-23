@@ -3,8 +3,8 @@
 - CSV: BCSFE가 내려받은 한국판 게임 데이터 (없으면 자동 다운로드)
 - 아이콘: 기기에서 꺼낸 *Server.pack 을 복호화해서 uni###_?00.png 추출
 
-출력: app/gamedata.js (window.GAMEDATA), app/icons/<id>_<form>.png
-사용: python tools/build_gamedata.py [--files <files 폴더>] [--version 15.6.0]
+출력: docs/gamedata.js (window.GAMEDATA), docs/icons/<id>_<form>.png  (GitHub Pages 사이트용, 커밋한다)
+사용: python tools/extract_vhdx.py --with-packs → python tools/build_gamedata.py [--version 15.6.0]
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from Crypto.Cipher import AES
 from common import ROOT
 
 DEFAULT_FILES = os.path.join(ROOT, "device")
-APP = os.path.join(ROOT, "app")
+SITE = os.path.join(ROOT, "docs")
 
 RARITY = ["기본", "EX", "레어", "슈퍼레어", "울트라슈퍼레어", "레전드레어"]
 # unitNNN.csv 의 타겟 속성 컬럼
@@ -123,7 +123,7 @@ def main(argv: list[str] | None = None) -> None:
                         "ultra": limit == 1, "trait": talent_trait(desc)})
         talents[r[0]] = lst
 
-    icons = extract_icons(args.files, os.path.join(APP, "icons"))
+    icons = extract_icons(args.files, os.path.join(SITE, "icons"))
 
     cats = []
     for cid, line in enumerate(read(os.path.join(D, "unitbuy.csv"))):
@@ -157,7 +157,7 @@ def main(argv: list[str] | None = None) -> None:
 
     out = {"version": data_version, "builtFor": args.version, "rarities": RARITY, "traits": list(TRAIT_COLS.values()),
            "cats": cats}
-    with open(os.path.join(APP, "gamedata.js"), "w", encoding="utf-8") as f:
+    with open(os.path.join(SITE, "gamedata.js"), "w", encoding="utf-8") as f:
         f.write("window.GAMEDATA = ")
         json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
         f.write(";\n")

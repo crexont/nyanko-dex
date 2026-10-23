@@ -1,11 +1,10 @@
-"""배포용 zip 만들기: PyInstaller(onedir) + 7-Zip 동봉 + 웹앱.
+"""추출 도구 배포용 zip 만들기: PyInstaller(onedir) + 7-Zip 동봉. (도감 웹페이지는 docs/ → GitHub Pages)
 
 사용: python tools/package.py [--version v0.1.0] [--7zip "C:\\Program Files\\7-Zip"]
 결과: build/NyankoDex-<version>-win64.zip
   NyankoDex/
     NyankoDex.exe, _internal/   (Python + bcsfe 포함)
     7z/7z.exe, 7z.dll, License.txt
-    app/index.html
     사용법.txt, LICENSE.txt
 """
 from __future__ import annotations
@@ -20,15 +19,18 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BUILD = os.path.join(ROOT, "build")
 NAME = "NyankoDex"
 
-HOWTO = """냥코 도감 (비공식, 읽기 전용)
+HOWTO = """냥코 도감 추출 도구 (비공식, 읽기 전용)
+
+도감 사이트: https://crexont.github.io/nyanko-dex/
 
 1. 블루스택 5에서 냥코대전쟁(한국판)에 계정을 옮기고 게임을 한 번 실행합니다.
 2. 블루스택을 완전히 종료합니다 (트레이 아이콘까지).
 3. NyankoDex.exe 를 더블클릭합니다.
-   → 세이브 추출 → 변환 → 브라우저에서 도감이 열립니다.
+   → 이 폴더에 "냥코_세이브.json"이 만들어지고, 도감 사이트가 열립니다.
+4. 사이트에서 [세이브 불러오기]로 냥코_세이브.json 을 열거나 끌어다 놓습니다.
 
 처음 실행할 때 "Windows의 PC 보호" 창이 뜨면 [추가 정보] → [실행]을 누르세요.
-다시 볼 때는 app/index.html 을 열면 됩니다.
+게임을 더 진행했으면 2, 3, 4를 다시 하면 됩니다. 사이트에서 직접 고친 내용은 브라우저에 저장됩니다.
 
 자세한 설명·소스 코드: https://github.com/{repo}
 라이선스: GPL-3.0 (LICENSE.txt). 동봉된 7-Zip은 7z/License.txt 를 따릅니다.
@@ -57,8 +59,6 @@ def main() -> None:
     os.makedirs(os.path.join(out, "7z"))
     for f in ("7z.exe", "7z.dll", "License.txt"):
         shutil.copy2(os.path.join(args.sevenzip, f), os.path.join(out, "7z", f))
-    os.makedirs(os.path.join(out, "app"))
-    shutil.copy2(os.path.join(ROOT, "app", "index.html"), os.path.join(out, "app", "index.html"))
     shutil.copy2(os.path.join(ROOT, "LICENSE"), os.path.join(out, "LICENSE.txt"))
     with open(os.path.join(out, "사용법.txt"), "w", encoding="utf-8-sig") as f:
         f.write(HOWTO.format(repo=args.repo))

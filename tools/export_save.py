@@ -1,7 +1,7 @@
 """세이브 파일을 읽기 전용으로 파싱해서 보유 캐릭 JSON을 만든다. 세이브는 수정하지 않는다.
 
 사용: python tools/export_save.py [세이브 경로] [-o 출력.json]
-기본: device/SAVE_DATA (extract_vhdx.py 가 꺼낸 것) → data/save.json
+기본: device/SAVE_DATA (extract_vhdx.py 가 꺼낸 것) → 냥코_세이브.json (사이트에서 불러오는 파일)
 """
 from __future__ import annotations
 
@@ -15,14 +15,13 @@ from bcsfe import core
 from common import ROOT
 
 DEFAULT_SAVE = os.path.join(ROOT, "device", "SAVE_DATA")
-DEFAULT_OUT = os.path.join(ROOT, "data", "save.json")
+DEFAULT_OUT = os.path.join(ROOT, "냥코_세이브.json")
 
 
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("save", nargs="?", default=DEFAULT_SAVE)
     ap.add_argument("-o", "--out", default=DEFAULT_OUT)
-    ap.add_argument("--js", help="웹앱이 자동으로 불러올 save.js 경로 (예: app/save.js)")
     args = ap.parse_args(argv)
 
     with open(args.save, "rb") as f:
@@ -53,11 +52,6 @@ def main(argv: list[str] | None = None) -> None:
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=1)
-    if args.js:
-        with open(args.js, "w", encoding="utf-8") as f:
-            f.write("window.SAVEDATA = ")
-            json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
-            f.write(";\n")
 
     forms = [sum(1 for c in cats if c["form"] == i) for i in range(4)]
     print(f"{out['source']} (v{out['gameVersion']}) → {args.out}")

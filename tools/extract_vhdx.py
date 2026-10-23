@@ -4,7 +4,8 @@
 - 인스턴스 폴더(Pie64, Rvc64 ...)를 자동으로 찾고, 여러 개면 세이브가 가장 최근인 것을 고른다
 - 7-Zip(7z.exe) 필요
 
-사용: python tools/extract_vhdx.py [--instance Pie64] [-o device]
+사용: python tools/extract_vhdx.py [--instance Pie64] [-o device] [--with-packs]
+  --with-packs: 사이트 아이콘을 다시 만들 때(build_gamedata.py) 필요한 *UnitServer 팩도 꺼낸다
 """
 from __future__ import annotations
 
@@ -20,7 +21,8 @@ from common import ROOT
 
 DEFAULT_OUT = os.path.join(ROOT, "device")
 GAME_DIR = "data/jp.co.ponos.battlecatskr/files"
-WANTED = ["SAVE_DATA", "*UnitServer.list", "*UnitServer.pack"]
+WANTED = ["SAVE_DATA"]
+PACKS = ["*UnitServer.list", "*UnitServer.pack"]
 BLUESTACKS_PROCS = ["HD-Player.exe"]
 
 
@@ -83,6 +85,7 @@ def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--instance", help="인스턴스 폴더 이름 (예: Pie64). 생략하면 자동 선택")
     ap.add_argument("-o", "--out", default=DEFAULT_OUT)
+    ap.add_argument("--with-packs", action="store_true", help="아이콘 팩도 추출 (사이트 데이터 빌드용)")
     args = ap.parse_args(argv)
 
     running = running_bluestacks()
@@ -110,7 +113,7 @@ def main(argv: list[str] | None = None) -> None:
     print(f"→ {os.path.basename(os.path.dirname(vhdx))} 사용 (세이브 {mtime})")
 
     os.makedirs(args.out, exist_ok=True)
-    r = subprocess.run([sz, "e", vhdx, f"-o{args.out}", "-y", *[f"{GAME_DIR}/{w}" for w in WANTED]],
+    r = subprocess.run([sz, "e", vhdx, f"-o{args.out}", "-y", *[f"{GAME_DIR}/{w}" for w in WANTED + (PACKS if args.with_packs else [])]],
                        capture_output=True, text=True, errors="replace")
     if r.returncode != 0:
         sys.exit("추출 실패:\n" + (r.stderr or r.stdout)[-800:])
