@@ -120,9 +120,11 @@ input[type=search]{flex:1;min-width:180px}
 .inv-group+.inv-group{margin-top:12px}
 .inv-group>small{display:block;color:var(--muted);font-size:12px;margin-bottom:6px}
 .inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px}
-.inv-grid label{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:var(--radius);padding:3px 4px 3px 3px}
-.inv-grid .item-ic{width:40px;height:40px;flex:none}
-.inv-grid input{flex:1;min-width:0;padding:4px 6px;text-align:right;font-variant-numeric:tabular-nums}
+.inv-grid label{display:flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:var(--radius);padding:3px 4px 3px 3px}
+.inv-grid .item-ic{width:36px;height:36px;flex:none}
+.inv-grid input{flex:1;min-width:0;text-align:right;font-variant-numeric:tabular-nums;-moz-appearance:textfield;appearance:textfield;padding:4px 5px}
+.inv-grid input::-webkit-inner-spin-button,.inv-grid input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.inv-grid.wide{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
 .item-ic{width:24px;height:24px;object-fit:contain;vertical-align:middle}
 .item-cell{white-space:nowrap}
 .item-cell .item-ic{margin-right:6px}
@@ -241,6 +243,7 @@ dialog.choose small{color:var(--muted)}
 .nm-grid b span{font-size:12px;font-weight:500;color:var(--muted)}
 .nm-grid div.up b{color:var(--accent)}
 .calc-note{margin-top:12px}
+.evo-done{margin:0;color:var(--ok);font-weight:700}
 .calc-note summary{cursor:pointer;color:var(--muted);font-size:12.5px;width:max-content}
 .calc-note summary:hover{color:var(--ink)}
 .calc-note .note{margin-top:6px}
@@ -324,7 +327,8 @@ fieldset:disabled{opacity:.45}
   .wrap{padding:0 16px}
   .topbar{position:static}
   .topbar .wrap{flex-direction:column;align-items:flex-start;height:auto;gap:4px;padding-top:10px;padding-bottom:4px}
-  .nav{width:100%;margin-left:-10px}
+  .nav{width:100%;margin-left:-10px;gap:0}
+  .nav span small{display:none}
   .page-head h1,.detail-head h1{font-size:24px}
   .detail-head{grid-template-columns:1fr;padding:18px}
   .detail-head img,.detail-head .ph{width:120px;height:93px}

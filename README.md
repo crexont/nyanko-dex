@@ -9,8 +9,8 @@
 [![추출 도구](https://img.shields.io/badge/추출%20도구-다운로드-2f8a4e?style=for-the-badge)](../../releases/latest)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/v1.0-home-dark.png">
-  <img src="images/v1.0-home-light.png" alt="냥코위키 홈 화면" width="860">
+  <source media="(prefers-color-scheme: dark)" srcset="images/v2.0-home-dark.png">
+  <img src="images/v2.0-home-light.png" alt="냥코위키 홈 화면" width="860">
 </picture>
 
 </div>
@@ -32,11 +32,12 @@
 아군 캐릭 770종 목록과 캐릭별 상세 페이지.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/v1.0-cat-dark.png">
-  <img src="images/v1.0-cat-light.png" alt="캐릭터 상세 — 본능 적용 스탯, 상황별 공격력, 내 보유 상태, 진화 재료" width="860">
+  <source media="(prefers-color-scheme: dark)" srcset="images/v2.0-cat-dark.png">
+  <img src="images/v2.0-cat-light.png" alt="캐릭터 상세 — 본능 적용 스탯, 상황별 공격력, 내 보유 상태, 진화 재료" width="860">
 </picture>
 
 - **진화 단계별 스탯**: 체력·공격력(레벨 지정 계산, 보물 최대 기준), 사거리, 공격 발생, 공격 간격, 이동 속도, 코스트, 재생산, 넉백
+- **나무위키식 스탯 표**: Lv30·40·50·60 체력·공격력·DPS와 엄강·맷집·초뎀 범위, 타격별 선딜·유효 사거리, 쿨타임·공격빈도·후딜 프레임
 - **본능 적용 스탯**: [본능 미적용 / 내 본능 / 본능 전부 최대]를 골라서 비교. 체력·공격력 %, 이동 속도, 넉백, 코스트, 재생산, 공격 간격까지 반영하고, 본능으로 바뀐 칸은 주황색으로 표시 (3진부터 적용, 보유 캐릭은 내 본능이 기본)
 - **상황별 공격력**: 공격력 업(체력 저하) 발동, 엄청 강하다(×1.8)·초 데미지(×4) 대상, 혼신의 일격, 크리티컬(×2) 때의 실제 공격력
 - **타겟 속성·특수 능력**: 빨강·떠있음·검정 등 타겟과 파동·쉴드·초생명체 같은 능력. 본능으로 생기거나 강해진 능력엔 "본능" 표시
@@ -47,8 +48,8 @@
 ### 📒 내 도감
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/v1.0-dex-dark.png">
-  <img src="images/v1.0-dex-light.png" alt="내 도감 — 보유·진화·레벨·본능 현황과 할 일 필터" width="860">
+  <source media="(prefers-color-scheme: dark)" srcset="images/v2.0-dex-dark.png">
+  <img src="images/v2.0-dex-light.png" alt="내 도감 — 보유·진화·레벨·본능 현황과 할 일 필터" width="860">
 </picture>
 
 - **세이브 불러오기**: PC 추출 도구로 내 세이브를 읽어서 보유 캐릭·진화·레벨+플러스·본능을 한 번에 채웁니다. 수백 마리를 일일이 입력하지 않아도 됩니다.
@@ -58,6 +59,11 @@
 - **자동 저장·백업**: 브라우저에 자동 저장, [내보내기]로 파일 백업 후 다른 기기에서 불러오기
 
 ### 🌱 육성 (v2.0)
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/v2.0-plan-dark.png">
+  <img src="images/v2.0-plan-light.png" alt="육성 — 육성 계획과 필요 재료 합계, 보유 재화·재료" width="860">
+</picture>
 
 - **재화·재료**: 세이브에서 경험치·NP·통조림·티켓, 개다래 씨앗·열매, 수석, 캐츠아이, 본능옥 보유량을 불러옵니다. 직접 고쳐도 됩니다.
 - **지금 바로 진화 가능**: 보유 캐릭 중 레벨과 재료가 모두 충족된 캐릭 목록
@@ -78,7 +84,7 @@
 
 상단 [내 도감] → [직접 입력할게요] → 가진 캐릭을 눌러 보유·진화·레벨·본능 입력 → 자동 저장
 
-<img src="images/v1.0-mobile.png" alt="모바일 화면" width="280" align="right">
+<img src="images/v2.0-mobile.png" alt="모바일 화면" width="280" align="right">
 
 ### 3. 세이브로 내 도감 채우기 (PC + 블루스택 5)
 

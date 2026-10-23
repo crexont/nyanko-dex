@@ -24,6 +24,7 @@ export function renderCat(root, id) {
 
 const sec = frames => { const s = (frames / 30).toFixed(2).replace(/\.?0+$/, ""); return `${s}초`; };
 const num = n => Math.floor(n).toLocaleString();
+const STEP_NAME = { tf: "3진", ff: "4진" };
 
 // 레벨 배율: 레벨이 1 오를 때마다 기본값의 curve[(레벨)/10]% 만큼 오른다 (unitlevel.csv)
 // 게임과 같은 반올림·버림 순서를 위해 BCU(util/unit/UnitLevel.getMult, battle/entity/Entity, AtkModelEntity)를
@@ -309,7 +310,15 @@ function paint(root, c, u) {
   // 진화 재료 + 내 보유량(재화 정보가 있으면) + 육성 계획 담기
   const known = !!store.data?.inv;
   const owns = (n, h) => known ? ` <span class="${h >= n ? "own-ok" : "own-lack"}">(보유 ${h.toLocaleString()}${h < n ? ` · ${(n - h).toLocaleString()} 부족` : ""})</span>` : "";
-  const evo = (title, e, need, step) => e || need != null ? `<div class="panel"><h2>${title}</h2><dl class="kv">
+  // 이미 그 단계까지 진화한 보유 캐릭: 완료 표시만, 쓴 재료는 접어 둔다
+  const evoDone = (title, e, step) => `<div class="panel"><h2>${title}</h2>
+      <p class="evo-done">✓ ${STEP_NAME[step]} 완료</p>
+      ${e?.items?.length || e?.xp ? `<details class="calc-note"><summary>진화 재료</summary><dl class="kv">
+        ${e.xp ? `<dt>경험치</dt><dd>${num(e.xp)} XP</dd>` : ""}
+        ${e.items.length ? `<dt>재료</dt><dd>${e.items.map(([id, k]) => `<span class="item-line">${itemIcon(id)}${esc(itemName(id))} ×${k}</span>`).join("")}</dd>` : ""}
+      </dl></details>` : ""}</div>`;
+  const evo = (title, e, need, step) => o && o.form >= (step === "tf" ? 2 : 3) ? evoDone(title, e, step)
+    : e || need != null ? `<div class="panel"><h2>${title}</h2><dl class="kv">
       ${need != null ? `<dt>필요 레벨</dt><dd>${need > 0 ? `Lv ${need}` : "특정 스테이지 클리어"}${o && need > 0 ? owns(need, o.level).replace("보유", "현재") : ""}</dd>` : ""}
       ${e?.xp ? `<dt>경험치</dt><dd>${num(e.xp)} XP${owns(e.xp, haveXp())}</dd>` : ""}
       ${e?.items?.length ? `<dt>재료</dt><dd>${e.items.map(([id, k]) => `<span class="item-line">${itemIcon(id)}${esc(itemName(id))} ×${k}${owns(k, have(id))}</span>`).join("")}</dd>` : ""}

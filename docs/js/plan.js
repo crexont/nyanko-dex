@@ -55,20 +55,24 @@ export function renderPlan(root) {
           <div id="pReady"></div></div>
       </div>
       <div>
-        <div class="panel"><h2>재화</h2><div class="inv-grid" id="pCur"></div></div>
+        <div class="panel"><h2>재화</h2><div class="inv-grid wide" id="pCur"></div></div>
         <div class="panel"><h2>보유 재료</h2><div id="pItems"></div>
           <p class="note">세이브를 불러오면 채워지고, 직접 고쳐도 돼요. 숫자를 바꾸면 바로 저장돼요.</p></div>
         <div class="panel"><h2>보유 본능옥</h2><div id="pOrbs"></div></div>
       </div>
     </div>`;
 
-  // 계획에 담기: 3진/4진 이름 → {id, step}
+  // 계획에 담기: 3진/4진 이름 → {id, step}. 이미 그 단계까지 진화한 보유 캐릭은 뺀다
   const opts = new Map();
-  for (const c of GD.cats) {
-    if (c.tfLevel != null && c.forms[2]) opts.set(`${c.forms[2].name} (3진)`, { id: c.id, step: "tf" });
-    if (c.ffLevel != null && c.forms[3]) opts.set(`${c.forms[3].name} (4진)`, { id: c.id, step: "ff" });
-  }
-  root.querySelector("#pAddList").innerHTML = [...opts.keys()].map(k => `<option value="${esc(k)}">`).join("");
+  const fillOpts = () => {
+    opts.clear();
+    for (const c of GD.cats) {
+      const form = store.owned(c.id)?.form ?? -1;
+      if (c.tfLevel != null && c.forms[2] && form < 2) opts.set(`${c.forms[2].name} (3진)`, { id: c.id, step: "tf" });
+      if (c.ffLevel != null && c.forms[3] && form < 3) opts.set(`${c.forms[3].name} (4진)`, { id: c.id, step: "ff" });
+    }
+    root.querySelector("#pAddList").innerHTML = [...opts.keys()].map(k => `<option value="${esc(k)}">`).join("");
+  };
   const add = () => {
     const inp = root.querySelector("#pAdd"), v = opts.get(inp.value.trim());
     if (!v) return toast("목록에서 캐릭을 골라 주세요.");
@@ -93,7 +97,7 @@ export function renderPlan(root) {
     if (rm) { const d = store.ensure(); d.plan = (d.plan || []).filter((_, i) => i !== +rm.dataset.rm); store.persist(); }
   });
 
-  const refresh = () => { renderInv(); renderPlanParts(); };
+  const refresh = () => { fillOpts(); renderInv(); renderPlanParts(); };
   refresh();
   return refresh;
 }
