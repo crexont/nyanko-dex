@@ -1,0 +1,2 @@
+bcsfe==3.6.0
+pycryptodome>=3.20

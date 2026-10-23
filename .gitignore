@@ -1,0 +1,18 @@
+# 개인 데이터 — 절대 올리지 않음 (세이브, 계정 관련 파일)
+device/
+data/
+jp.co.ponos.battlecatskr/
+*SAVE_DATA*
+app/save.js
+
+# 게임 리소스 — 각자 PC에서 tools/build_gamedata.py 로 생성 (재배포하지 않음)
+app/gamedata.js
+app/icons/
+*.pack
+*.list
+
+# 기타
+__pycache__/
+*.pyc
+.claude/
+build/
