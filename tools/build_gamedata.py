@@ -1,7 +1,7 @@
 """게임 데이터(이름·레어도·본능·속성) + 아이콘을 앱용으로 빌드한다.
 
 - CSV: BCSFE가 내려받은 한국판 게임 데이터 (없으면 자동 다운로드)
-- 아이콘: 기기에서 꺼낸 *Server.pack 을 복호화해서 uni###_?00.png 추출
+- 아이콘: 기기에서 꺼낸 APK의 UnitLocal.pack + *UnitServer.pack 을 복호화해서 uni###_?00.png 추출 (알 캐릭은 uniNNN_m0?)
 
 출력: docs/gamedata.js (window.GAMEDATA), docs/icons/<id>_<form>.png  (GitHub Pages 사이트용, 커밋한다)
 사용: python tools/extract_vhdx.py --with-packs → python tools/build_gamedata.py [--version 15.6.0]
@@ -14,6 +14,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 
 from Crypto.Cipher import AES
 
@@ -23,6 +24,9 @@ DEFAULT_FILES = os.path.join(ROOT, "device")
 SITE = os.path.join(ROOT, "docs")
 
 RARITY = ["기본", "EX", "레어", "슈퍼레어", "울트라슈퍼레어", "레전드레어"]
+# 미출시 자리표시 이름: "730_1" 같은 번호, 또는 번역 안 된 일본어(가나 글자).
+# 한국판 이름에도 쓰이는 가운뎃점 ・(U+30FB)·장음 ー(U+30FC)는 가나로 치지 않는다.
+DUMMY_NAME = re.compile(r"\d+[_-]\d+|.*[ぁ-ゖァ-ヺ].*")
 # unitNNN.csv 의 타겟 속성 컬럼
 TRAIT_COLS = {10: "빨강", 16: "떠있음", 17: "검정", 18: "메탈", 19: "무속성",
               20: "천사", 21: "에이리언", 22: "좀비", 78: "고대종", 96: "악마"}
@@ -71,29 +75,51 @@ def talent_trait(desc: str) -> str | None:
     return TALENT_TRAIT.get(m[1]) if m else None
 
 
-def extract_icons(files_dir: str, out_dir: str) -> set[tuple[int, int]]:
-    """*Server.pack 에서 uni###_[fcsu]00.png 를 뽑는다. 뒤 팩이 앞 팩을 덮어씀."""
-    list_key = hashlib.md5(b"pack").hexdigest()[:16].encode()
-    pack_key = hashlib.md5(b"battlecats").hexdigest()[:16].encode()
-    os.makedirs(out_dir, exist_ok=True)
-    found: dict[tuple[int, int], tuple[str, int, int]] = {}
-    for lst in sorted(glob.glob(os.path.join(files_dir, "*Server.list"))):
-        raw = AES.new(list_key, AES.MODE_ECB).decrypt(open(lst, "rb").read())
-        for line in raw[:-raw[-1]].decode("utf-8", "replace").splitlines()[1:]:
-            name, off, size = line.split(",")[:3]
-            m = re.fullmatch(r"uni(\d+)_([fcsu])00\.png", name)
-            if m:
-                found[(int(m[1]), "fcsu".index(m[2]))] = (lst[:-5] + ".pack", int(off), int(size))
-    packs: dict[str, bytes] = {}
-    for (cid, form), (pack, off, size) in found.items():
-        if pack not in packs:
-            packs[pack] = open(pack, "rb").read()
-        seg = packs[pack][off:off + size]
-        png = AES.new(pack_key, AES.MODE_ECB).decrypt(seg[:len(seg) // 16 * 16])
+LIST_KEY = hashlib.md5(b"pack").hexdigest()[:16].encode()
+SERVER_KEY = hashlib.md5(b"battlecats").hexdigest()[:16].encode()      # *Server.pack (다운로드 팩)
+LOCAL_KEY = bytes.fromhex("bea585eb993216ef4dcb88b625c3df98")          # APK 안 *Local.pack (한국판)
+LOCAL_IV = bytes.fromhex("9b13c2121d39f1353a125fed98696649")
+
+
+class IconPacks:
+    """기기에서 꺼낸 아이콘 팩 묶음. APK의 UnitLocal(기본 리소스) 위에 *UnitServer(업데이트)를 덮어쓴다."""
+
+    def __init__(self, files_dir: str):
+        self.index: dict[str, tuple[str, int, int]] = {}
+        self._cache: dict[str, bytes] = {}
+        lists = sorted(glob.glob(os.path.join(files_dir, "*Local.list"))) + \
+            sorted(glob.glob(os.path.join(files_dir, "*Server.list")))
+        for lst in lists:
+            raw = AES.new(LIST_KEY, AES.MODE_ECB).decrypt(open(lst, "rb").read())
+            for line in raw[:-raw[-1]].decode("utf-8", "replace").splitlines()[1:]:
+                name, off, size = line.split(",")[:3]
+                if name.startswith("uni"):
+                    self.index[name] = (lst[:-5] + ".pack", int(off), int(size))
+
+    def get(self, name: str) -> bytes | None:
+        if name not in self.index:
+            return None
+        pack, off, size = self.index[name]
+        if pack not in self._cache:
+            self._cache[pack] = open(pack, "rb").read()
+        seg = self._cache[pack][off:off + size]
+        seg = seg[:len(seg) // 16 * 16]
+        if "Server" in os.path.basename(pack):
+            png = AES.new(SERVER_KEY, AES.MODE_ECB).decrypt(seg)
+        else:
+            png = AES.new(LOCAL_KEY, AES.MODE_CBC, LOCAL_IV).decrypt(seg)
         end = png.find(b"IEND")
-        with open(os.path.join(out_dir, f"{cid}_{form}.png"), "wb") as f:
-            f.write(png[:end + 8] if end >= 0 else png)
-    return set(found)
+        return png[:end + 8] if end >= 0 else png
+
+
+def icon_names(cid: int, form: int, ub: list[int]) -> list[str]:
+    """진화 단계 하나의 아이콘 후보 파일 이름. 알 캐릭은 1·2단계가 알 그림(uniNNN_m00 / _m01)."""
+    names = [f"uni{cid:03d}_{'fcsu'[form]}00.png"]
+    if ub[61] >= 0 and form == 0:
+        names.append(f"uni{ub[61]:03d}_m00.png")
+    if ub[61] >= 0 and form == 1:
+        names.append(f"uni{ub[62]:03d}_m01.png")
+    return names
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -123,7 +149,11 @@ def main(argv: list[str] | None = None) -> None:
                         "ultra": limit == 1, "trait": talent_trait(desc)})
         talents[r[0]] = lst
 
-    icons = extract_icons(args.files, os.path.join(SITE, "icons"))
+    packs = IconPacks(args.files)
+    icon_dir = os.path.join(SITE, "icons")
+    shutil.rmtree(icon_dir, ignore_errors=True)
+    os.makedirs(icon_dir)
+    n_icons = 0
 
     cats = []
     for cid, line in enumerate(read(os.path.join(D, "unitbuy.csv"))):
@@ -133,14 +163,24 @@ def main(argv: list[str] | None = None) -> None:
         if not os.path.exists(expl) or not os.path.exists(stats):
             continue
         names = [l.split("|")[0].strip() for l in read(expl)]
+        if not names or DUMMY_NAME.fullmatch(names[0]):
+            continue  # "730_1" 같은 미출시 더미
         stat_rows = [l.split("//")[0].split(",") for l in read(stats) if l.strip()]
         forms = []
         for f, name in enumerate(names[:4]):
-            if not name or f >= len(stat_rows):
+            if not name or f >= len(stat_rows) or DUMMY_NAME.fullmatch(name):
+                break
+            # 3진·4진 진화가 없는 캐릭은 데이터에 앞 단계 이름이 한 번 더 들어 있다 → 가짜 단계라 뺀다
+            if f >= 2 and ub[21 + f] <= 0 and name == forms[-1]["name"]:
                 break
             row = stat_rows[f]
             traits = [t for c, t in TRAIT_COLS.items() if len(row) > c and row[c].strip() == "1"]
-            forms.append({"name": name, "traits": traits, "icon": (cid, f) in icons})
+            png = next((p for p in map(packs.get, icon_names(cid, f, ub)) if p), None)
+            if png:
+                with open(os.path.join(icon_dir, f"{cid}_{f}.png"), "wb") as fp:
+                    fp.write(png)
+                n_icons += 1
+            forms.append({"name": name, "traits": traits, "icon": png is not None})
         if not forms:
             continue
         cats.append({
@@ -161,7 +201,7 @@ def main(argv: list[str] | None = None) -> None:
         f.write("window.GAMEDATA = ")
         json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
         f.write(";\n")
-    print(f"캐릭 {len(cats)}종, 아이콘 {len(icons)}개, 본능 보유 캐릭 {sum(1 for c in cats if c['talents'])}종")
+    print(f"캐릭 {len(cats)}종, 아이콘 {n_icons}개, 본능 보유 캐릭 {sum(1 for c in cats if c['talents'])}종")
 
 
 if __name__ == "__main__":

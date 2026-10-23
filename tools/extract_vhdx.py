@@ -5,7 +5,7 @@
 - 7-Zip(7z.exe) 필요
 
 사용: python tools/extract_vhdx.py [--instance Pie64] [-o device] [--with-packs]
-  --with-packs: 사이트 아이콘을 다시 만들 때(build_gamedata.py) 필요한 *UnitServer 팩도 꺼낸다
+  --with-packs: 사이트 아이콘을 다시 만들 때(build_gamedata.py) 필요한 *UnitServer 팩과 APK의 UnitLocal 팩도 꺼낸다
 """
 from __future__ import annotations
 
@@ -16,11 +16,13 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 
 from common import ROOT
 
 DEFAULT_OUT = os.path.join(ROOT, "device")
 GAME_DIR = "data/jp.co.ponos.battlecatskr/files"
+APP_DIR = "app/jp.co.ponos.battlecatskr*"  # 설치 폴더 이름 뒤에 임의 문자열이 붙는다
 WANTED = ["SAVE_DATA"]
 PACKS = ["*UnitServer.list", "*UnitServer.pack"]
 BLUESTACKS_PROCS = ["HD-Player.exe"]
@@ -81,6 +83,19 @@ def save_mtime(sz: str, vhdx: str) -> str | None:
     return m[1].strip()[:19] if r.returncode == 0 and m else None
 
 
+def extract_apk_icons(sz: str, vhdx: str, out: str) -> None:
+    """설치 APK(split_InstallPack.apk)의 assets/UnitLocal.* — 업데이트 팩에 없는 기본 캐릭 아이콘."""
+    with tempfile.TemporaryDirectory() as tmp:
+        r = subprocess.run([sz, "e", vhdx, f"-o{tmp}", "-y", "-r", f"{APP_DIR}/split_InstallPack.apk"],
+                           capture_output=True, text=True, errors="replace")
+        apk = os.path.join(tmp, "split_InstallPack.apk")
+        if r.returncode != 0 or not os.path.exists(apk):
+            print("  (APK 아이콘 팩을 찾지 못했습니다. 업데이트 팩 아이콘만 씁니다)")
+            return
+        subprocess.run([sz, "e", apk, f"-o{out}", "-y", "assets/UnitLocal.list", "assets/UnitLocal.pack"],
+                       capture_output=True, check=True)
+
+
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--instance", help="인스턴스 폴더 이름 (예: Pie64). 생략하면 자동 선택")
@@ -117,6 +132,8 @@ def main(argv: list[str] | None = None) -> None:
                        capture_output=True, text=True, errors="replace")
     if r.returncode != 0:
         sys.exit("추출 실패:\n" + (r.stderr or r.stdout)[-800:])
+    if args.with_packs:
+        extract_apk_icons(sz, vhdx, args.out)
     n = len(os.listdir(args.out))
     print(f"추출 완료: {args.out} ({n}개 파일)")
 
