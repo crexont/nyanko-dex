@@ -6,7 +6,7 @@
     NyankoDex.exe, _internal/   (Python + bcsfe 포함)
     7z/7z.exe, 7z.dll, License.txt
     app/index.html
-    사용법.txt
+    사용법.txt, LICENSE.txt
 """
 from __future__ import annotations
 
@@ -30,7 +30,8 @@ HOWTO = """냥코 도감 (비공식, 읽기 전용)
 처음 실행할 때 "Windows의 PC 보호" 창이 뜨면 [추가 정보] → [실행]을 누르세요.
 다시 볼 때는 app/index.html 을 열면 됩니다.
 
-자세한 설명: https://github.com/{repo}
+자세한 설명·소스 코드: https://github.com/{repo}
+라이선스: GPL-3.0 (LICENSE.txt). 동봉된 7-Zip은 7z/License.txt 를 따릅니다.
 """
 
 
@@ -58,6 +59,7 @@ def main() -> None:
         shutil.copy2(os.path.join(args.sevenzip, f), os.path.join(out, "7z", f))
     os.makedirs(os.path.join(out, "app"))
     shutil.copy2(os.path.join(ROOT, "app", "index.html"), os.path.join(out, "app", "index.html"))
+    shutil.copy2(os.path.join(ROOT, "LICENSE"), os.path.join(out, "LICENSE.txt"))
     with open(os.path.join(out, "사용법.txt"), "w", encoding="utf-8-sig") as f:
         f.write(HOWTO.format(repo=args.repo))
 

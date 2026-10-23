@@ -16,3 +16,4 @@ __pycache__/
 *.pyc
 .claude/
 build/
+CLAUDE.md

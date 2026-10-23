@@ -53,7 +53,7 @@ def main() -> None:
         version = json.load(f)["gameVersion"]
 
     if built_for() != version or packs_newer():
-        log(f"[3/3] 게임 데이터 빌드 (v{version}) - 처음엔 다운로드 때문에 1~2분 걸립니다")
+        log(f"[3/3] 게임 데이터 빌드 (v{version}) - 처음엔 다운로드 때문에 1, 2분 걸립니다")
         build_gamedata.main(["--version", version])
     else:
         log(f"[3/3] 게임 데이터 최신 (v{version})")
