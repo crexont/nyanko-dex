@@ -30,7 +30,7 @@ function renderHome(root) {
       <div>
         <p class="eyebrow">냥코대전쟁 · 한국판 데이터베이스</p>
         <h1>냥코위키</h1>
-        <p>캐릭터 ${GD.cats.length}종의 스탯·능력·본능·진화 재료를 찾아보고,</p>
+        <p>캐릭터 ${GD.cats.length}종과 적·스테이지 데이터를 찾아보고,</p>
         <p>내 세이브를 불러와 보유 캐릭과 육성 현황을 관리할 수 있어요.</p>
         <div class="acts">
           <a class="btn primary big" href="#/cats">캐릭터 찾아보기 <span aria-hidden="true">↗</span></a>
