@@ -62,6 +62,9 @@ export function renderPlan(root) {
           <div id="pList"></div>
           <div id="pSum"></div>
         </div>
+        <div class="panel" id="pDrop"><h2>재료 드롭 스테이지</h2>
+          <div class="drop-pick" id="pDropPick"></div>
+          <div id="pDropList"><p class="note" style="margin:0">재료를 고르면 그 재료가 나오는 스테이지를 확률 높은 순으로 보여줘요.</p></div></div>
         <div class="panel"><h2>지금 바로 진화 가능</h2>
           <p class="note" style="margin:0 0 10px">캐릭마다 따로 계산한 결과예요. 경험치·열매는 함께 쓰니까, 여러 마리를 진화시킬 땐 계획에 담아 합계를 확인하세요.</p>
           <div id="pReady"></div></div>
@@ -125,7 +128,11 @@ export function renderPlan(root) {
     if (rm) { const d = store.ensure(); d.plan = (d.plan || []).filter((_, i) => i !== +rm.dataset.rm); store.persist(); }
   });
 
-  const refresh = () => { fillOpts(); renderInv(); renderPlanParts(); };
+  const refresh = () => { fillOpts(); renderInv(); renderPlanParts(); renderDropPick(); };
+  root.addEventListener("click", e => {
+    const b = e.target.closest("[data-drop]");
+    if (b) { dropSel = +b.dataset.drop; renderDropPick(); renderDropList(); if (b.closest("#pSum")) root.querySelector("#pDrop").scrollIntoView({ behavior: "smooth" }); }
+  });
   refresh();
   return refresh;
 }
@@ -199,7 +206,7 @@ function renderPlanParts() {
   document.getElementById("pSum").innerHTML = rows.length ? `
     <h3 class="sum-title">필요 재료 합계 ${lack ? `<span class="tag todo">${lack}종 부족</span>` : `<span class="tag ready">전부 충분</span>`}</h3>
     <table class="sum-table"><thead><tr><th>재료</th><th>필요</th><th>보유</th><th>부족</th></tr></thead><tbody>
-    ${rows.map(([id, name, n, h]) => `<tr class="${h < n ? "lack" : ""}"><td class="item-cell">${itemIcon(id, name)}${esc(name)}</td><td>${n.toLocaleString()}</td><td>${h.toLocaleString()}</td><td>${h < n ? (n - h).toLocaleString() : "-"}</td></tr>`).join("")}
+    ${rows.map(([id, name, n, h]) => `<tr class="${h < n ? "lack" : ""}"><td class="item-cell">${itemIcon(id, name)}${esc(name)}${h < n && id !== GD.currencyItems.xp ? ` <button class="mini" data-drop="${id}">드롭</button>` : ""}</td><td>${n.toLocaleString()}</td><td>${h.toLocaleString()}</td><td>${h < n ? (n - h).toLocaleString() : "-"}</td></tr>`).join("")}
     </tbody></table>
     ${store.data?.inv ? "" : `<p class="note">보유량이 0으로 계산됐어요. 재화·재료를 불러오거나 입력하세요.</p>`}` : "";
 
@@ -219,3 +226,35 @@ function renderPlanParts() {
 }
 
 const costText = cost => cost ? `<span class="cost-ic">${cost.xp ? `<b>${itemIcon(GD.currencyItems.xp, "경험치")}${cost.xp.toLocaleString()}</b>` : ""}${cost.items.map(([id, n]) => `<b>${itemIcon(id)}×${n}</b>`).join("")}</span>` : "";
+
+// ---- 재료 드롭 스테이지 (docs/data/stages/item_drops.json) ----
+let dropSel = null, dropsPromise;
+const loadItemDrops = () => dropsPromise ??= Promise.all([
+  fetch("data/stages/item_drops.json").then(r => r.json()),
+  fetch("data/stages/index.json").then(r => r.json()),
+]);
+const materialIds = () => itemGroups().flatMap(([, ids]) => ids);
+
+function renderDropPick() {
+  const box = document.getElementById("pDropPick"); if (!box) return;
+  box.innerHTML = materialIds().map(id => `<button class="drop-chip" data-drop="${id}" aria-pressed="${id === dropSel}" title="${esc(itemName(id))}">${itemIcon(id)}</button>`).join("");
+}
+
+function renderDropList() {
+  const box = document.getElementById("pDropList"); if (!box || dropSel == null) return;
+  box.innerHTML = `<p class="note" style="margin:0">불러오는 중…</p>`;
+  loadItemDrops().then(([drops, idx]) => {
+    const where = new Map(idx.categories.flatMap(c => c.maps.map(([mid, n]) => [mid, { c: c.name, n }])));
+    const list = (drops[dropSel] || []).map(([mid, si, ch, all, sname, energy]) => ({ mid, si, ch: all ? 100 : ch, all, sname, energy, ...where.get(mid) }))
+      .filter(r => r.n).sort((a, b) => (b.ch ?? 0) - (a.ch ?? 0) || (a.energy ?? 999) - (b.energy ?? 999));
+    const fresh = list.filter(r => !r.n.includes("(옛 버전)"));
+    const LIMIT = 40;
+    box.innerHTML = `<h3 class="sum-title">${itemIcon(dropSel)}${esc(itemName(dropSel))} <small>${fresh.length}곳</small></h3>
+      ${fresh.length ? `<div class="table-wrap"><table class="sum-table drop-table"><thead><tr><th>스테이지</th><th>확률</th><th>통솔력</th></tr></thead><tbody>
+        ${fresh.slice(0, LIMIT).map(r => `<tr><td><small>${esc(r.c)}</small><a href="#/stage/${r.mid}/${r.si}">${esc(r.n)} · ${esc(r.sname)}</a></td>
+          <td>${r.all ? "확정" : r.ch != null ? `${r.ch}%` : "-"}</td><td>${r.energy ?? "-"}</td></tr>`).join("")}
+      </tbody></table></div>${fresh.length > LIMIT ? `<p class="note">확률 높은 ${LIMIT}곳만 보여줘요.</p>` : ""}`
+      : `<p class="note" style="margin:0">이 재료를 드롭하는 스테이지를 찾지 못했어요.</p>`}
+      <p class="note">이벤트·요일 스테이지는 열려 있는 기간에만 갈 수 있어요. 확률은 한 번 클리어했을 때 기준이에요.</p>`;
+  }).catch(() => { box.innerHTML = `<p class="note" style="margin:0">드롭 데이터를 불러오지 못했어요.</p>`; });
+}

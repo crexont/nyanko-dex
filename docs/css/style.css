@@ -240,6 +240,17 @@ dialog.choose small{color:var(--muted)}
 .get-list.drops a:hover{color:var(--accent)}
 .get-list b{color:var(--accent);white-space:nowrap}
 #lvTo{width:70px}
+.drop-pick{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px}
+.drop-chip{border:1px solid var(--line);background:var(--panel);border-radius:var(--radius);padding:2px;cursor:pointer;line-height:0}
+.drop-chip .item-ic{width:34px;height:34px}
+.drop-chip[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 15%,transparent)}
+.drop-table th{white-space:nowrap}
+.drop-table td:first-child{white-space:normal}
+.drop-table td small{display:block;color:var(--muted);font-size:11px}
+.drop-table a{color:var(--ink);text-decoration:none}
+.drop-table a:hover{color:var(--accent)}
+.sum-title .item-ic{width:26px;height:26px;margin-right:4px}
+.sum-title small{color:var(--muted);font-weight:400;margin-left:6px}
 .appear{list-style:none;margin:0 0 10px;padding:0;display:flex;flex-direction:column;gap:5px;font-size:13.5px}
 .appear li{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;border-bottom:1px dashed var(--line);padding-bottom:5px}
 .appear small{color:var(--muted);font-size:11.5px;min-width:86px}

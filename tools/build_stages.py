@@ -42,6 +42,8 @@ CATEGORIES = [
     ("M", "챌린지 배틀", 12, "RM", "RM", "M"),
 ]
 # 일본어(가나·한자)가 남은 이름 = 한국판 미출시. "(旧)"는 한국판 이름에도 붙어서 먼저 바꾼다
+# 분류 파일이 아닌 출력 (역색인·목록)
+SKIP_FILES = ("index.json", "enemy_stages.json", "cat_drops.json", "item_drops.json")
 KANA = re.compile(r"[ぁ-ゖァ-ヺ一-鿿]")
 OLD = "(旧)"
 
@@ -297,7 +299,7 @@ def main(argv: list[str] | None = None) -> None:
     # 적 → 등장 스테이지 (적 상세 페이지용): {적 ID: [[맵 번호, [스테이지 번호, ...]], ...]}
     appear: dict[int, dict[int, list[int]]] = {}
     for f in os.listdir(out_dir):
-        if f.endswith(".json") and f not in ("index.json", "enemy_stages.json", "cat_drops.json"):
+        if f.endswith(".json") and f not in SKIP_FILES:
             for mid, m in json.load(open(os.path.join(out_dir, f), encoding="utf-8")).items():
                 for st in m["stages"]:
                     for e in st["en"]:
@@ -315,7 +317,7 @@ def main(argv: list[str] | None = None) -> None:
             drop_chara[int(r[0])] = int(r[2])
     cat_drops: dict[int, list] = {}
     for f in os.listdir(out_dir):
-        if f.endswith(".json") and f not in ("index.json", "enemy_stages.json", "cat_drops.json"):
+        if f.endswith(".json") and f not in SKIP_FILES:
             for mid, m in json.load(open(os.path.join(out_dir, f), encoding="utf-8")).items():
                 for st in m["stages"]:
                     for d in st.get("drop", []):
@@ -323,6 +325,20 @@ def main(argv: list[str] | None = None) -> None:
                             cat_drops.setdefault(drop_chara[d[0]], []).append([int(mid), st["i"], d[2], st.get("dropAll", 0), st["n"]])
     with open(os.path.join(out_dir, "cat_drops.json"), "w", encoding="utf-8") as f:
         json.dump({k: sorted(v) for k, v in cat_drops.items()}, f, separators=(",", ":"))
+
+    # 아이템(번호 < 1000) → 드롭 스테이지 (육성 페이지 "재료 드롭 스테이지"용):
+    # {아이템: [[맵, 스테이지, 확률(%)|null, 전부 획득, 스테이지 이름, 통솔력], ...]}
+    item_drops: dict[int, list] = {}
+    for f in os.listdir(out_dir):
+        if f.endswith(".json") and f not in SKIP_FILES:
+            for mid, m in json.load(open(os.path.join(out_dir, f), encoding="utf-8")).items():
+                for st in m["stages"]:
+                    for d in st.get("drop", []):
+                        if 0 <= d[0] < 1000:
+                            item_drops.setdefault(d[0], []).append(
+                                [int(mid), st["i"], d[2], st.get("dropAll", 0), st["n"], st.get("energy")])
+    with open(os.path.join(out_dir, "item_drops.json"), "w", encoding="utf-8") as f:
+        json.dump(item_drops, f, ensure_ascii=False, separators=(",", ":"))
 
     items = {i: item_names[i] for i in sorted(used_items) if i < len(item_names)}
     with open(os.path.join(out_dir, "index.json"), "w", encoding="utf-8") as f:
