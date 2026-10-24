@@ -86,6 +86,7 @@ LOCAL_IV = bytes.fromhex("9b13c2121d39f1353a125fed98696649")
 
 UNIT_ANIM = re.compile(r"\d{3}_[fcsu]02\.maanim")  # 캐릭 공격 모션 (02 = 공격)
 ITEM_ICON = re.compile(r"gatyaitemD_\d+_f\.png")  # 아이템 아이콘 (번호 = GatyaitemName 행 = 아이템 ID)
+ENEMY_FILE = re.compile(r"enemy_icon_\d{3}\.png|\d{3}_e02\.maanim")  # 적 아이콘·공격 모션 (build_enemies.py)
 # 재화 아이콘: 경험치·NP·통조림·냥코/레어/플래티넘/레전드 티켓
 CURRENCY_ITEMS = {"xp": 6, "np": 7, "catfood": 22, "normalTickets": 20, "rareTickets": 21,
                   "platinumTickets": 29, "legendTickets": 145}
@@ -103,7 +104,7 @@ class IconPacks:
             raw = AES.new(LIST_KEY, AES.MODE_ECB).decrypt(open(lst, "rb").read())
             for line in raw[:-raw[-1]].decode("utf-8", "replace").splitlines()[1:]:
                 name, off, size = line.split(",")[:3]
-                if name.startswith("uni") or UNIT_ANIM.fullmatch(name) or ITEM_ICON.fullmatch(name):
+                if name.startswith("uni") or UNIT_ANIM.fullmatch(name) or ITEM_ICON.fullmatch(name) or ENEMY_FILE.fullmatch(name):
                     self.index[name] = (lst[:-5] + ".pack", int(off), int(size))
 
     def get(self, name: str, text: bool = False) -> bytes | None:

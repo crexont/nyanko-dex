@@ -5,6 +5,7 @@ import { renderDex } from "./dex.js";
 import { renderCats } from "./cats.js";
 import { renderCat } from "./cat.js";
 import { renderPlan } from "./plan.js";
+import { renderEnemies, renderEnemy } from "./enemy.js";
 
 const main = document.getElementById("page");
 let refresh = null;  // 지금 페이지를 다시 그리는 함수 (내 도감 데이터가 바뀌면 호출)
@@ -14,7 +15,8 @@ const NAV = [
   { href: "#/cats", label: "캐릭터", match: /^#\/cats?\b/ },
   { href: "#/dex", label: "내 도감", match: /^#\/dex/ },
   { href: "#/plan", label: "육성", match: /^#\/plan/ },
-  { label: "적" }, { label: "스테이지" }, { label: "일정" },
+  { href: "#/enemies", label: "적", match: /^#\/enem/ },
+  { label: "스테이지" }, { label: "일정" },
 ];
 
 function renderHome(root) {
@@ -40,7 +42,7 @@ function renderHome(root) {
       <a class="tile" href="#/cats"><b>캐릭터</b><span>진화 단계별 체력·공격력·사거리, 특수 능력, 본능, 3진·4진 재료</span></a>
       <a class="tile" href="#/dex"><b>내 도감</b><span>세이브를 불러오거나 직접 입력해서 보유·레벨·본능 관리</span></a>
       <a class="tile" href="#/plan"><b>육성</b><span>보유 재화·개다래·수석 관리, 지금 바로 진화 가능한 캐릭, 진화 계획 재료 합계·부족분</span></a>
-      <div class="tile soon"><b>적</b><span>적 캐릭터 스탯과 능력</span></div>
+      <a class="tile" href="#/enemies"><b>적</b><span>적 캐릭터 배율별 체력·공격력·DPS, 사거리, 속성, 능력</span></a>
       <div class="tile soon"><b>스테이지</b><span>스테이지별 출현 적과 보상</span></div>
       <div class="tile soon"><b>일정</b><span>이번 주 뽑기·이벤트·세일 일정</span></div>
     </div>
@@ -50,7 +52,10 @@ function renderHome(root) {
 function route() {
   const h = location.hash || "#/";
   const cat = h.match(/^#\/cat\/(\d+)/);
+  const enemy = h.match(/^#\/enemy\/(\d+)/);
   if (cat) refresh = renderCat(main, +cat[1]);
+  else if (enemy) refresh = renderEnemy(main, +enemy[1]);
+  else if (h.startsWith("#/enemies")) refresh = renderEnemies(main);
   else if (h.startsWith("#/cats")) refresh = renderCats(main);
   else if (h.startsWith("#/dex")) refresh = renderDex(main);
   else if (h.startsWith("#/plan")) refresh = renderPlan(main);

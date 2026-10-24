@@ -4,6 +4,7 @@
   --accent:#e0752d;--accent-ink:#fff;--chip:#f0ece4;--chip-on:#1f1d1a;--chip-on-ink:#fff;
   --ok:#2f8a4e;--warn:#c4581c;--ultra:#7b4bd1;--danger:#c23b30;
   --tr-빨강:#e5484d;--tr-떠있음:#3aa6c9;--tr-검정:#3b3a38;--tr-메탈:#9aa4ad;--tr-무속성:#d9d4ca;--tr-천사:#e2b93b;--tr-에이리언:#8e5bd6;--tr-좀비:#6b8e4e;--tr-고대종:#a6784a;--tr-악마:#a33a3a;
+  --tr-마녀:#c0508f;--tr-사도:#6a4fc9;--tr-초생명체:#2c8a8b;--tr-초수:#b5651d;--tr-초현자:#4a7bd0;--tr-괴인:#8a7a6a;
   --r0:#8d8a84;--r1:#3a8fd6;--r2:#3fa55b;--r3:#d6a21e;--r4:#d0463c;--r5:#9b46d1;
   --wrap:1240px;--radius:4px;
 }
@@ -189,6 +190,13 @@ dialog.choose small{color:var(--muted)}
 .mcard img,.mcard .ph{width:84px;height:65px}
 .mcard .name{font-size:13.5px;max-width:100%}
 .mcard .sub{justify-content:center}
+.eicon{width:64px;height:64px;object-fit:contain;flex:none}
+.eicon.ph{display:inline-block;background:var(--chip);border-radius:var(--radius)}
+.eicon.big{width:96px;height:96px}
+.egrid .mcard img,.egrid .mcard .ph{width:64px;height:64px}
+.tr.mini{font-size:10.5px;padding:0 6px;line-height:1.6}
+.ctl.pct label{display:inline-flex;align-items:center;gap:4px;margin-left:8px}
+.ctl.pct input{width:76px}
 .mcard .owned-dot{position:absolute;top:7px;right:7px;width:8px;height:8px;border-radius:50%;background:var(--ok)}
 
 /* ---- 캐릭터 상세 ---- */

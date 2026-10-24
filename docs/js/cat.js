@@ -67,7 +67,8 @@ const calcHp = (base, mult, talentPct) => Math.trunc(Math.trunc(f32(Math.round(f
 // 공격력(한 타): trunc( 본능 × trunc( round(기본×레벨) × 보물 ) )
 const calcAtk = (base, mult, talentPct) => Math.trunc((1 + talentPct * 0.01) * Math.trunc(f32(Math.round(f32(base * mult)) * TREASURE)));
 
-function abilityText(a, traits) {
+// 능력 문장. 적 상세(enemy.js)도 같이 쓴다 (적 전용 능력은 아래쪽)
+export function abilityText(a, traits) {
   const [k, v, x, y, z] = a, to = traits.length ? `${traits.join("·")}에게 ` : "";
   switch (k) {
     case "strong": return `${to}엄청 강하다`;
@@ -116,6 +117,16 @@ function abilityText(a, traits) {
     case "immToxic": return "독 데미지 무효";
     case "immSurge": return "열파 데미지 무효";
     case "immBlast": return "폭파 데미지 무효";
+    // 적 전용
+    case "burrow": return `지하 이동 (${v < 0 ? "무한" : `${v}회`}, 거리 ${x})`;
+    case "revive": return `부활 (${v < 0 ? "무한" : `${v}회`}, ${sec(x)} 뒤 체력 ${y}%)`;
+    case "warp": return `워프 (${v}%, ${sec(x)}, 거리 ${y}~${z})`;
+    case "toxic": return `독 공격 (${v}%, 최대 체력의 ${x}%)`;
+    case "barrierHp": return `베리어 (강도 ${num(v)})`;
+    case "demonShield": return `쉴드 (강도 ${num(v)}, 히트백 시 ${x}% 재생)`;
+    case "deathSurge": return `사망 시 열파 (${v}%, ${x}~${y}, Lv${z})`;
+    case "blast": return `폭파 공격 (${v}%, ${x}~${y})`;
+    case "delay": return `지연 공격 (${v}%, 세기 ${x})`;
     default:
       if (k.startsWith("res:")) return `${k.slice(4)} 내성 (${v}% 감소)`;
       return k;

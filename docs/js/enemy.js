@@ -1,0 +1,166 @@
+// 적 — 적 목록과 적 상세 (docs/data/enemies.json, 처음 열 때 한 번 받는다)
+import { esc, clamp, traitChips, chips, toggle } from "./common.js";
+import { abilityText } from "./cat.js";
+
+let enemiesPromise;
+export const loadEnemies = () => enemiesPromise ??= fetch("data/enemies.json").then(r => {
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}).then(list => ({ list, byId: new Map(list.map(e => [e.id, e])) }));
+
+const sec = frames => { const s = (frames / 30).toFixed(2).replace(/\.?0+$/, ""); return `${s}초`; };
+const num = n => Math.floor(n).toLocaleString();
+const f32 = Math.fround;
+// 냥코DB(battlecats-db.com) 적 번호 = 적 ID + 2
+export const dbEnemyUrl = id => `https://battlecats-db.com/enemy/${String(id + 2).padStart(3, "0")}.html`;
+export const enemyIcon = (e, cls = "") => e?.icon
+  ? `<img class="eicon ${cls}" src="icons/enemy/${e.id}.png" alt="" loading="lazy">` : `<span class="eicon ph ${cls}"></span>`;
+
+// 배율 적용 (BCU Entity / AtkModelEntity): 체력 = trunc(기본 × 배율), 공격력 = round(기본 × 배율). 배율은 float
+export const enemyHp = (e, pct) => Math.trunc(f32(e.hp * f32(pct / 100)));
+export const enemyAtk = (base, pct) => Math.round(f32(base * f32(pct / 100)));
+// 공격 주기 (BCU DefaultData.getItv): 마지막 타 선딜 + max(공격간격×2 − 1, 모션 길이 − 마지막 타 선딜)
+export function enemyCycle(e) {
+  if (!e.anim) return null;
+  const longPre = Math.max(...e.pre);
+  return longPre + Math.max(e.tba * 2 - 1, e.anim - longPre);
+}
+
+const TRAITS = ["빨강", "떠있음", "검정", "메탈", "무속성", "천사", "에이리언", "좀비", "고대종", "악마", "사도", "초생명체", "초수", "초현자", "괴인", "마녀"];
+const ui = { q: "", trait: new Set(), sort: "id" };
+
+export function renderEnemies(root) {
+  root.innerHTML = `
+    <p class="crumb"><a href="#/">냥코위키</a><i>/</i><span>적</span></p>
+    <div class="page-head">
+      <div><h1>적</h1><p id="eLead">적 캐릭터 목록. 누르면 배율별 체력·공격력, 사거리, 능력을 볼 수 있어요.</p></div>
+    </div>
+    <div class="filters">
+      <div class="row">
+        <input type="search" id="eQ" placeholder="이름 또는 번호 검색" value="${esc(ui.q)}">
+        <select id="eSort" aria-label="정렬"><option value="id">번호순</option><option value="hp">체력순</option><option value="range">사거리순</option><option value="name">이름순</option></select>
+      </div>
+      <div class="row" id="eTrait"><span class="lbl">속성</span></div>
+    </div>
+    <p class="count" id="eCount"></p>
+    <div class="mgrid egrid" id="eGrid"><div class="empty">불러오는 중…</div></div>`;
+  root.querySelector("#eSort").value = ui.sort;
+  loadEnemies().then(({ list }) => {
+    root.querySelector("#eLead").textContent = `한국판 냥코대전쟁 적 캐릭터 ${list.length}종. 누르면 배율별 체력·공격력, 사거리, 능력을 볼 수 있어요.`;
+    const draw = () => drawList(list);
+    const filters = () => {
+      chips(root.querySelector("#eTrait"), TRAITS.map(t => [t, t]), v => ui.trait.has(v), v => { toggle(ui.trait, v); filters(); draw(); });
+    };
+    root.querySelector("#eQ").oninput = e => { ui.q = e.target.value.trim(); draw(); };
+    root.querySelector("#eSort").onchange = e => { ui.sort = e.target.value; draw(); };
+    filters(); draw();
+  }).catch(() => { root.querySelector("#eGrid").innerHTML = `<div class="empty">적 데이터를 불러오지 못했어요. 새로고침해 주세요.</div>`; });
+  return null;
+}
+
+function drawList(all) {
+  const grid = document.getElementById("eGrid"); if (!grid) return;
+  const q = ui.q.toLowerCase();
+  const list = all.filter(e => {
+    for (const t of ui.trait) if (!e.traits.includes(t)) return false;
+    return !q || e.name.toLowerCase().includes(q) || String(e.id) === q;
+  });
+  if (ui.sort === "hp") list.sort((a, b) => b.hp - a.hp);
+  if (ui.sort === "range") list.sort((a, b) => b.range - a.range);
+  if (ui.sort === "name") list.sort((a, b) => a.name.localeCompare(b.name, "ko"));
+  document.getElementById("eCount").textContent = `${list.length}종`;
+  grid.innerHTML = list.length ? list.map(e => `<a class="mcard" href="#/enemy/${e.id}">
+      ${enemyIcon(e)}<span class="name">${esc(e.name)}</span>
+      <span class="sub"><span>#${e.id}</span>${e.traits.slice(0, 2).map(t => `<span class="tr mini" style="--c:var(--tr-${t})">${t}</span>`).join("")}</span></a>`).join("")
+    : `<div class="empty">조건에 맞는 적이 없습니다</div>`;
+}
+
+const state = { id: null, hpPct: 100, atkPct: 100 };
+
+export function renderEnemy(root, id) {
+  if (state.id !== id) Object.assign(state, { id, hpPct: 100, atkPct: 100 });
+  root.innerHTML = `<div class="empty">불러오는 중…</div>`;
+  loadEnemies().then(({ byId }) => {
+    const e = byId.get(id);
+    if (!e) { root.innerHTML = `<div class="empty">적을 찾을 수 없어요. <a href="#/enemies">적 목록으로</a></div>`; return; }
+    paint(root, e);
+  }).catch(() => { root.innerHTML = `<div class="empty">적 데이터를 불러오지 못했어요. 새로고침해 주세요.</div>`; });
+  return null;
+}
+
+function paint(root, e) {
+  const hp = enemyHp(e, state.hpPct);
+  const hits = e.atk.map(a => enemyAtk(a, state.atkPct));
+  const total = hits.reduce((a, b) => a + b, 0);
+  const cycleF = enemyCycle(e), tbaF = e.tba * 2;
+  const longPre = Math.max(...e.pre), postF = e.anim ? e.anim - longPre : null;
+  const dps = cycleF ? Math.floor(total * 30 / cycleF) : null;  // 적 DPS는 버림 (냥코DB·나무위키 적 문서와 같음)
+  const money = v => (Math.round(v * 100) / 100).toLocaleString();
+  const F = f => f == null ? "-" : `${num(f)}<span> (${sec(f)})</span>`;
+  const ldText = ([a, w]) => `${Math.min(a, a + w)}~${Math.max(a, a + w)}`;
+  const multi = hits.length > 1;
+  const lds = e.lds || (e.ld ? e.atk.map(() => e.ld) : null);
+  const abil = e.ab.map(a => `<li>${esc(abilityText(a, []))}</li>`);
+  if (e.area) abil.unshift("<li>범위 공격</li>");
+  if (e.ld && !e.lds) abil.unshift(`<li>원거리 공격 (${ldText(e.ld)})</li>`);
+  if (multi) abil.push(`<li>${hits.length}회 연속 공격</li>`);
+  const pct = (k, label) => `<label>${label} <input type="number" id="${k}" min="1" max="100000" value="${state[k]}">%</label>`;
+
+  root.innerHTML = `
+    <p class="crumb"><a href="#/">냥코위키</a><i>/</i><a href="#/enemies">적</a><i>/</i><span>${esc(e.name)}</span></p>
+    <section class="detail-head">
+      ${enemyIcon(e, "big")}
+      <div>
+        <div class="badges"><span class="cid">#${e.id}</span>${e.dex ? "" : `<span class="tag">도감 미등록</span>`}</div>
+        <h1>${esc(e.name)}</h1>
+        ${traitChips(e.traits) || `<div class="sub">속성 없음</div>`}
+        ${e.desc ? `<p class="desc">${esc(e.desc.replace(/【%s】/g, ""))}</p>` : ""}
+      </div>
+    </section>
+    <div class="cols">
+      <div>
+        <div class="panel">
+          <h2>스탯 <span class="ctl pct">${pct("hpPct", "체력")} ${pct("atkPct", "공격력")}</span></h2>
+          <div class="nm">
+            <div class="nm-box"><div class="nm-h">체력</div><div class="nm-rows"><div class="sel"><span>${state.hpPct}%</span> <b>${num(hp)}</b></div></div></div>
+            <div class="nm-box"><div class="nm-h">공격력${multi ? ` (${hits.length}회 합계)` : ""}</div><div class="nm-rows"><div class="sel"><span>${state.atkPct}%</span> <b>${num(total)}</b></div>
+              ${multi ? `<div class="sub-hit"><span>타격별</span> ${hits.map(num).join(" + ")}</div>` : ""}</div></div>
+            <div class="nm-box${multi ? "" : " wide"}"><div class="nm-h">DPS</div><div class="nm-rows"><div class="sel"><span>${state.atkPct}%</span> <b>${dps == null ? "-" : num(dps)}</b></div></div></div>
+            ${multi ? `<table class="nm-hits"><thead><tr><th>타격</th><th>선딜F</th>${lds ? "<th>유효 사거리</th>" : ""}</tr></thead><tbody>
+              ${e.pre.map((p, i) => `<tr><td>${i + 1}타</td><td>${F(p)}</td>${lds ? `<td>${ldText(lds[i])}</td>` : ""}</tr>`).join("")}</tbody></table>` : ""}
+          </div>
+          <div class="nm-grid">
+            <div><small>히트백</small><b>${e.kb}</b></div>
+            <div><small>이동속도</small><b>${e.speed}</b></div>
+            <div><small>사거리</small><b>${e.range}${!multi && e.ld ? `<span> (유효 ${ldText(e.ld)})</span>` : ""}</b></div>
+            <div><small>주는 돈</small><b>${money(e.money * 3.95)}<span> (기본 ${num(e.money)})</span></b></div>
+            <div><small>공격 범위</small><b>${e.area ? "범위" : "단일"}${e.ld ? "<span> · 원거리</span>" : ""}</b></div>
+            <div><small>공격빈도F</small><b>${F(cycleF)}</b></div>
+            <div><small>공격간격F</small><b>${F(tbaF)}</b></div>
+            ${multi ? `<div><small>공격 횟수</small><b>${hits.length}회</b></div>` : `<div><small>선딜F</small><b>${F(e.pre[0])}</b></div>`}
+            <div><small>후딜F</small><b>${F(postF)}</b></div>
+            <div><small>넉백당 체력</small><b>${num(hp / Math.max(e.kb, 1))}</b></div>
+          </div>
+          <details class="calc-note"><summary>계산 기준</summary><p class="note">스테이지마다 적 배율(%)이 달라요. 체력 = 기본 체력 × 체력 배율, 공격력 = 기본 공격력 × 공격력 배율. F는 프레임(30F = 1초), 공격빈도 = 마지막 타 선딜 + max(공격간격 − 1, 후딜), DPS = 공격력 ÷ 공격빈도. 주는 돈은 보물·연구 최대(×3.95) 기준이에요. 에이리언은 크리스탈을 다 모은 기준이라, 덜 모았으면 별 없는 에이리언은 최대 7배, 별 에이리언은 최대 16배까지 더 세져요.</p></details>
+        </div>
+        <div class="panel">
+          <h2>능력</h2>
+          <ul class="ab-list">${abil.length ? abil.join("") : `<li class="none">특수 능력 없음</li>`}</ul>
+        </div>
+      </div>
+      <div>
+        <div class="panel"><h2>기본 정보</h2><dl class="kv">
+          <dt>번호</dt><dd>#${e.id}</dd>
+          <dt>기본 체력</dt><dd>${num(e.hp)}</dd>
+          <dt>기본 공격력</dt><dd>${e.atk.map(num).join(" + ")}</dd>
+          ${e.star ? `<dt>별 에이리언</dt><dd>보물 효과를 덜 받는 에이리언</dd>` : ""}
+        </dl>
+        <p style="margin:12px 0 0"><a class="btn" href="${dbEnemyUrl(e.id)}" target="_blank" rel="noopener">냥코DB에서 보기 ↗</a></p></div>
+      </div>
+    </div>`;
+  document.title = `${e.name} - 냥코위키`;
+  for (const k of ["hpPct", "atkPct"]) {
+    const inp = root.querySelector("#" + k);
+    inp.onchange = () => { state[k] = clamp(parseInt(inp.value) || 100, 1, 100000); paint(root, e); root.querySelector("#" + k).focus(); };
+  }
+}
