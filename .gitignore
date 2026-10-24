@@ -12,8 +12,6 @@ jp.co.ponos.battlecatskr/
 # 기타
 __pycache__/
 *.pyc
-.claude/
 build/
-CLAUDE.md
 /bcsfe_data/
 docs/_test*.json
