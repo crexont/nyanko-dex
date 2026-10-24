@@ -8,6 +8,12 @@ export const loadEnemies = () => enemiesPromise ??= fetch("data/enemies.json").t
   return r.json();
 }).then(list => ({ list, byId: new Map(list.map(e => [e.id, e])) }));
 
+let appearPromise;
+const loadAppear = () => appearPromise ??= Promise.all([
+  fetch("data/stages/enemy_stages.json").then(r => r.json()),
+  fetch("data/stages/index.json").then(r => r.json()),
+]);
+
 const sec = frames => { const s = (frames / 30).toFixed(2).replace(/\.?0+$/, ""); return `${s}초`; };
 const num = n => Math.floor(n).toLocaleString();
 const f32 = Math.fround;
@@ -27,7 +33,7 @@ export function enemyCycle(e) {
 }
 
 const TRAITS = ["빨강", "떠있음", "검정", "메탈", "무속성", "천사", "에이리언", "좀비", "고대종", "악마", "사도", "초생명체", "초수", "초현자", "괴인", "마녀"];
-const ui = { q: "", trait: new Set(), sort: "id" };
+const ui = { q: "", trait: new Set(), sort: "id", hidden: false };
 
 export function renderEnemies(root) {
   root.innerHTML = `
@@ -41,18 +47,20 @@ export function renderEnemies(root) {
         <select id="eSort" aria-label="정렬"><option value="id">번호순</option><option value="hp">체력순</option><option value="range">사거리순</option><option value="name">이름순</option></select>
       </div>
       <div class="row" id="eTrait"><span class="lbl">속성</span></div>
+      <div class="row"><label class="check"><input type="checkbox" id="eHidden"${ui.hidden ? " checked" : ""}> 이름 없는 적도 보기 <small>(도감에 안 나오는 콜라보·특수 적)</small></label></div>
     </div>
     <p class="count" id="eCount"></p>
     <div class="mgrid egrid" id="eGrid"><div class="empty">불러오는 중…</div></div>`;
   root.querySelector("#eSort").value = ui.sort;
   loadEnemies().then(({ list }) => {
-    root.querySelector("#eLead").textContent = `한국판 냥코대전쟁 적 캐릭터 ${list.length}종. 누르면 배율별 체력·공격력, 사거리, 능력을 볼 수 있어요.`;
+    root.querySelector("#eLead").textContent = `한국판 냥코대전쟁 적 캐릭터 ${list.filter(e => !e.hidden).length}종. 누르면 배율별 체력·공격력, 사거리, 능력을 볼 수 있어요.`;
     const draw = () => drawList(list);
     const filters = () => {
       chips(root.querySelector("#eTrait"), TRAITS.map(t => [t, t]), v => ui.trait.has(v), v => { toggle(ui.trait, v); filters(); draw(); });
     };
     root.querySelector("#eQ").oninput = e => { ui.q = e.target.value.trim(); draw(); };
     root.querySelector("#eSort").onchange = e => { ui.sort = e.target.value; draw(); };
+    root.querySelector("#eHidden").onchange = e => { ui.hidden = e.target.checked; draw(); };
     filters(); draw();
   }).catch(() => { root.querySelector("#eGrid").innerHTML = `<div class="empty">적 데이터를 불러오지 못했어요. 새로고침해 주세요.</div>`; });
   return null;
@@ -62,6 +70,7 @@ function drawList(all) {
   const grid = document.getElementById("eGrid"); if (!grid) return;
   const q = ui.q.toLowerCase();
   const list = all.filter(e => {
+    if (e.hidden && !ui.hidden) return false;
     for (const t of ui.trait) if (!e.traits.includes(t)) return false;
     return !q || e.name.toLowerCase().includes(q) || String(e.id) === q;
   });
@@ -147,6 +156,7 @@ function paint(root, e) {
           <h2>능력</h2>
           <ul class="ab-list">${abil.length ? abil.join("") : `<li class="none">특수 능력 없음</li>`}</ul>
         </div>
+        <div class="panel" id="eAppear"><h2>등장 스테이지</h2><p class="note" style="margin:0">불러오는 중…</p></div>
       </div>
       <div>
         <div class="panel"><h2>기본 정보</h2><dl class="kv">
@@ -159,8 +169,29 @@ function paint(root, e) {
       </div>
     </div>`;
   document.title = `${e.name} - 냥코위키`;
+  paintAppear(root, e);
   for (const k of ["hpPct", "atkPct"]) {
     const inp = root.querySelector("#" + k);
     inp.onchange = () => { state[k] = clamp(parseInt(inp.value) || 100, 1, 100000); paint(root, e); root.querySelector("#" + k).focus(); };
   }
+}
+
+// 등장 스테이지: 맵마다 몇 번째 스테이지에 나오는지 (분류 순서대로)
+function paintAppear(root, e) {
+  loadAppear().then(([appear, idx]) => {
+    const box = root.querySelector("#eAppear"); if (!box) return;
+    const list = appear[e.id] || [];
+    const where = new Map();
+    idx.categories.forEach((c, ci) => c.maps.forEach(([mid, name]) => where.set(mid, { c, ci, name })));
+    const rows = list.map(([mid, sts]) => ({ mid, sts, ...where.get(mid) })).filter(r => r.c).sort((a, b) => a.ci - b.ci || a.mid - b.mid);
+    const total = rows.reduce((n, r) => n + r.sts.length, 0);
+    const LIMIT = 30, more = rows.length > LIMIT;
+    const html = list => list.map(r => `<li><small>${esc(r.c.name)}</small><a href="#/stage/${r.mid}">${esc(r.name)}</a>
+      <span>${r.sts.map(i => `<a href="#/stage/${r.mid}/${i}">${i + 1}</a>`).join(" ")}</span></li>`).join("");
+    box.innerHTML = rows.length ? `<h2>등장 스테이지 <span class="ctl">${rows.length}개 맵 · ${total}스테이지</span></h2>
+      <ul class="appear">${html(rows.slice(0, LIMIT))}</ul>
+      ${more ? `<button class="btn" id="eMore">${rows.length - LIMIT}개 맵 더 보기</button>` : ""}`
+      : `<h2>등장 스테이지</h2><p class="note" style="margin:0">한국판 스테이지 데이터에서 찾지 못했어요.</p>`;
+    box.querySelector("#eMore")?.addEventListener("click", ev => { box.querySelector(".appear").innerHTML = html(rows); ev.target.remove(); });
+  }).catch(() => {});
 }

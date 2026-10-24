@@ -109,18 +109,22 @@ def main(argv: list[str] | None = None) -> None:
 
     enemies, n_icon = [], 0
     for eid, name in enumerate(names):
-        if not name or name == "ダミー" or eid + 2 >= len(rows):
+        if eid + 2 >= len(rows):
             continue
         r = rows[eid + 2]
         if not any(cell(r, c) for c in range(7)):
             continue  # 비어 있는 자리
-        e = {"id": eid, "name": name, "traits": [t for c, t in TRAIT_COLS if cell(r, c) == 1], **enemy_stats(r)}
+        # 이름이 "ダミー"(일본판도 같음)인 적은 도감에 안 나오는 적. 스테이지에는 나오니 이름 없이 넣고 목록에선 숨긴다
+        nameless = not name or name == "ダミー"
+        e = {"id": eid, "name": f"이름 없는 적 #{eid}" if nameless else name, "traits": [t for c, t in TRAIT_COLS if cell(r, c) == 1], **enemy_stats(r)}
         if eid < len(books):
             parts = [p.strip() for p in books[eid].split("|")[1:] if p.strip()]
             if parts:
                 e["desc"] = " ".join(parts)
         if eid in in_dex:
             e["dex"] = 1
+        if nameless:
+            e["hidden"] = 1
         raw = packs.get(f"{eid:03d}_e02.maanim", text=True)
         l = anim_len(raw) if raw else None
         if l is not None:
@@ -135,7 +139,7 @@ def main(argv: list[str] | None = None) -> None:
 
     with open(os.path.join(SITE, "data", "enemies.json"), "w", encoding="utf-8") as f:
         json.dump(enemies, f, ensure_ascii=False, separators=(",", ":"))
-    print(f"적 {len(enemies)}종 (도감 {sum(1 for e in enemies if e.get('dex'))}), 아이콘 {n_icon}개, "
+    print(f"적 {len(enemies)}종 (이름 없음 {sum(1 for e in enemies if e.get('hidden'))}, 도감 {sum(1 for e in enemies if e.get('dex'))}), 아이콘 {n_icon}개, "
           f"공격 모션 없음 {sum(1 for e in enemies if 'anim' not in e)}")
 
 
