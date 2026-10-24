@@ -192,7 +192,9 @@ dialog.choose small{color:var(--muted)}
 .mcard .name{font-size:13.5px;max-width:100%}
 .mcard .sub{justify-content:center}
 .eicon{width:64px;height:64px;object-fit:contain;flex:none}
-.eicon.ph{display:inline-block;background:var(--chip);border-radius:var(--radius)}
+.eicon.ph{display:inline-flex;align-items:center;justify-content:center;background:var(--chip);border-radius:var(--radius);color:var(--muted);font-weight:700;font-size:20px}
+.eicon.ph.sm{font-size:15px}
+.eicon.ph.big{font-size:34px}
 .eicon.big{width:96px;height:96px}
 .egrid .mcard img,.egrid .mcard .ph{width:64px;height:64px}
 .tr.mini{font-size:10.5px;padding:0 6px;line-height:1.6}
@@ -228,6 +230,9 @@ dialog.choose small{color:var(--muted)}
 .en-name .trs{display:flex;gap:3px;margin:3px 0 0 42px}
 .en-table td.outr{color:var(--ok);font-weight:600}
 .en-table td.outr.none{color:var(--muted);font-weight:400}
+.en-table tr.late td{opacity:.6}
+.en-table td.skip{color:var(--muted);font-size:12px}
+.en-name em.late-tag{color:var(--muted)}
 .en-table td.spawn{font-size:12.5px;color:var(--muted);text-align:left;white-space:normal;min-width:150px}
 .rewards{display:flex;flex-direction:column;gap:6px}
 .reward{display:flex;align-items:center;gap:8px;font-size:14px}

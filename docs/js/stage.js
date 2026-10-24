@@ -13,6 +13,9 @@ const loadUnits = () => unitsPromise ??= fetch("data/units.json").then(r => r.js
 const PREFIX = { 3: "MS", 20: "Z", 21: "Z", 22: "Z", 23: "Z", 0: "N", 13: "NA", 34: "ND", 1: "S", 2: "C", 24: "A", 27: "CA", 25: "H", 31: "Q", 4: "RE", 14: "B",
                  7: "V", 36: "SR", 37: "G", 30: "DM", 33: "L", 6: "T", 11: "R", 12: "M" };
 const codeOf = mid => PREFIX[Math.floor(mid / 1000)];
+// 900초(27000F) 이상 기다렸다 나오는 적 (간판 아가씨 등 시간 끌기 방지용): 출현 적 표엔 남기고
+// 사거리 비교·아웃레인지·가장 긴 적 사거리·속성 대응 계산에서는 뺀다
+const LATE_F = 27000;
 const sec = f => { const s = (f / 30).toFixed(2).replace(/\.?0+$/, ""); return `${s}초`; };
 const num = n => Math.floor(n).toLocaleString();
 const failed = (root, what) => { root.innerHTML = `<div class="empty">${what} 데이터를 불러오지 못했어요. 새로고침해 주세요.</div>`; };
@@ -122,6 +125,8 @@ function paint(root, idx, mid, m, s, byId) {
              dps: cyc ? Math.floor(atk * 30 / cyc) : null };
   });
   const enemies = [...new Map(rows.filter(r => r.e).map(r => [r.eid, r.e])).values()];
+  const inPlay = [...new Map(rows.filter(r => r.e && r.first < LATE_F).map(r => [r.eid, r.e])).values()];
+  const hasLate = rows.some(r => r.first >= LATE_F);
   const traits = [...new Set(enemies.flatMap(e => e.traits))];
   const pctText = r => r.hpPct === r.atkPct ? `${num(r.hpPct)}%` : `체력 ${num(r.hpPct)}% · 공격 ${num(r.atkPct)}%`;
   const spawn = r => {
@@ -140,15 +145,15 @@ function paint(root, idx, mid, m, s, byId) {
       <div>
         <div class="panel"><h2>출현 적 <span class="ctl">${enemies.length}종 · 한 번에 최대 ${s.max}마리</span></h2>
           <div class="table-wrap"><table class="en-table"><thead><tr><th>적</th><th>배율</th><th>체력</th><th>공격력</th><th>DPS</th><th>사거리</th><th title="내 도감 보유 캐릭 중 이 적보다 사거리가 긴 캐릭 수">아웃레인지</th><th>수</th><th>출현</th></tr></thead><tbody>
-          ${rows.map(r => `<tr class="${r.boss ? "boss" : ""}">
-            <td class="en-name"><a href="#/enemy/${r.eid}">${enemyIcon(r.e, "sm")}<span>${esc(r.e?.name ?? `적 #${r.eid}`)}${r.boss ? `<em>보스</em>` : ""}${r.isBase ? `<em>성</em>` : ""}</span></a>
+          ${rows.map(r => `<tr class="${r.boss ? "boss" : ""}${r.first >= LATE_F ? " late" : ""}">
+            <td class="en-name"><a href="#/enemy/${r.eid}">${enemyIcon(r.e, "sm")}<span>${esc(r.e?.name ?? `적 #${r.eid}`)}${r.boss ? `<em>보스</em>` : ""}${r.isBase ? `<em>성</em>` : ""}${r.first >= LATE_F ? `<em class="late-tag">${Math.round(r.first / 1800)}분 뒤 등장</em>` : ""}</span></a>
               ${r.e?.traits.length ? `<span class="trs">${r.e.traits.map(t => `<span class="tr mini" style="--c:var(--tr-${t})">${t}</span>`).join("")}</span>` : ""}</td>
             <td>${pctText(r)}</td><td>${num(r.hp)}</td><td>${num(r.atk)}</td><td>${r.dps == null ? "-" : num(r.dps)}</td>
             <td>${r.e ? r.e.range + (r.e.ld ? `<small> (${Math.min(r.e.ld[0], r.e.ld[0] + r.e.ld[1])}~${Math.max(r.e.ld[0], r.e.ld[0] + r.e.ld[1])})</small>` : "") : "-"}</td>
-            <td class="outr" data-r="${r.e?.range ?? 0}">-</td>
+            ${r.first >= LATE_F ? `<td class="skip" title="오래 기다려야 나오는 적이라 사거리 비교에서 뺐어요">제외</td>` : `<td class="outr" data-r="${r.e?.range ?? 0}">-</td>`}
             <td>${r.count === 0 ? "무한" : r.count}</td><td class="spawn">${spawn(r)}</td></tr>`).join("")}
           </tbody></table></div>
-          <p class="note">배율은 ${m.stars.length > 1 ? `★${st.star + 1}(${starPct}%)` : "기본"} 기준이에요. 아웃레인지는 내 도감 보유 캐릭(지금 진화 단계) 중 그 적보다 사거리가 긴 캐릭 수예요. 적 이름을 누르면 능력까지 볼 수 있어요.</p>
+          <p class="note">배율은 ${m.stars.length > 1 ? `★${st.star + 1}(${starPct}%)` : "기본"} 기준이에요. 아웃레인지는 내 도감 보유 캐릭(지금 진화 단계) 중 그 적보다 사거리가 긴 캐릭 수예요.${hasLate ? " \"N분 뒤 등장\" 적(간판 아가씨 등)은 스테이지를 오래 끌 때만 나와서 사거리 비교·아웃레인지·속성 대응에서 뺐어요." : ""} 적 이름을 누르면 능력까지 볼 수 있어요.</p>
         </div>
         <div class="panel" id="rangeCmp"><h2>사거리 비교 <span class="ctl">이 스테이지 적 vs 내 캐릭</span></h2><div class="empty">불러오는 중…</div></div>
       </div>
@@ -170,7 +175,7 @@ function paint(root, idx, mid, m, s, byId) {
     </div>`;
   document.title = `${s.n} - 냥코위키`;
   root.querySelectorAll("[data-star]").forEach(b => b.onclick = () => { st.star = +b.dataset.star; paint(root, idx, mid, m, s, byId); });
-  paintMine(root, rows, enemies, traits);
+  paintMine(root, rows, inPlay, [...new Set(inPlay.flatMap(e => e.traits))]);
 }
 
 // 내 캐릭(내 도감 보유, 지금 진화 단계)의 사거리·속성 대응 — 내 도감이 비어 있으면 안내만

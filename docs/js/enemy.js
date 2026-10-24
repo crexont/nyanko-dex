@@ -19,8 +19,10 @@ const num = n => Math.floor(n).toLocaleString();
 const f32 = Math.fround;
 // 냥코DB(battlecats-db.com) 적 번호 = 적 ID + 2
 export const dbEnemyUrl = id => `https://battlecats-db.com/enemy/${String(id + 2).padStart(3, "0")}.html`;
+// 아이콘이 게임 데이터에 없는 적(간판 아가씨 등)은 이름 첫 글자로 자리를 채운다
 export const enemyIcon = (e, cls = "") => e?.icon
-  ? `<img class="eicon ${cls}" src="icons/enemy/${e.id}.png" alt="" loading="lazy">` : `<span class="eicon ph ${cls}"></span>`;
+  ? `<img class="eicon ${cls}" src="icons/enemy/${e.id}.png" alt="" loading="lazy">`
+  : `<span class="eicon ph ${cls}" aria-hidden="true">${esc((e?.name || "?").replace(/^이름 없는 적 /, "")[0])}</span>`;
 
 // 배율 적용 (BCU Entity / AtkModelEntity): 체력 = trunc(기본 × 배율), 공격력 = round(기본 × 배율). 배율은 float
 export const enemyHp = (e, pct) => Math.trunc(f32(e.hp * f32(pct / 100)));
@@ -104,7 +106,8 @@ function paint(root, e) {
   const cycleF = enemyCycle(e), tbaF = e.tba * 2;
   const longPre = Math.max(...e.pre), postF = e.anim ? e.anim - longPre : null;
   const dps = cycleF ? Math.floor(total * 30 / cycleF) : null;  // 적 DPS는 버림 (냥코DB·나무위키 적 문서와 같음)
-  const money = v => (Math.round(v * 100) / 100).toLocaleString();
+  // 주는 돈: 보물·연구 최대 ×3.95, 게임처럼 정수 버림 (BCU EEnemy: money = (int)(money + 배수 × 기본))
+  const money = v => Math.floor(v + 1e-9).toLocaleString();
   const F = f => f == null ? "-" : `${num(f)}<span> (${sec(f)})</span>`;
   const ldText = ([a, w]) => `${Math.min(a, a + w)}~${Math.max(a, a + w)}`;
   const multi = hits.length > 1;
@@ -150,7 +153,7 @@ function paint(root, e) {
             <div><small>후딜F</small><b>${F(postF)}</b></div>
             <div><small>넉백당 체력</small><b>${num(hp / Math.max(e.kb, 1))}</b></div>
           </div>
-          <details class="calc-note"><summary>계산 기준</summary><p class="note">스테이지마다 적 배율(%)이 달라요. 체력 = 기본 체력 × 체력 배율, 공격력 = 기본 공격력 × 공격력 배율. F는 프레임(30F = 1초), 공격빈도 = 마지막 타 선딜 + max(공격간격 − 1, 후딜), DPS = 공격력 ÷ 공격빈도. 주는 돈은 보물·연구 최대(×3.95) 기준이에요. 에이리언은 크리스탈을 다 모은 기준이라, 덜 모았으면 별 없는 에이리언은 최대 7배, 별 에이리언은 최대 16배까지 더 세져요.</p></details>
+          <details class="calc-note"><summary>계산 기준</summary><p class="note">스테이지마다 적 배율(%)이 달라요. 체력 = 기본 체력 × 체력 배율, 공격력 = 기본 공격력 × 공격력 배율. F는 프레임(30F = 1초), 공격빈도 = 마지막 타 선딜 + max(공격간격 − 1, 후딜), DPS = 공격력 ÷ 공격빈도. 주는 돈은 보물·연구 최대(×3.95, 소수점 버림) 기준이에요. 에이리언은 크리스탈을 다 모은 기준이라, 덜 모았으면 별 없는 에이리언은 최대 7배, 별 에이리언은 최대 16배까지 더 세져요.</p></details>
         </div>
         <div class="panel">
           <h2>능력</h2>
