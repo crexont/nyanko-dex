@@ -128,7 +128,7 @@ function paint(root, idx, mid, m, s, byId) {
   const inPlay = [...new Map(rows.filter(r => r.e && r.first < LATE_F).map(r => [r.eid, r.e])).values()];
   const hasLate = rows.some(r => r.first >= LATE_F);
   const traits = [...new Set(enemies.flatMap(e => e.traits))];
-  const pctText = r => r.hpPct === r.atkPct ? `${num(r.hpPct)}%` : `체력 ${num(r.hpPct)}% · 공격 ${num(r.atkPct)}%`;
+  const pctText = r => r.hpPct === r.atkPct ? `${num(r.hpPct)}%` : `체력 ${num(r.hpPct)}%<br>공격 ${num(r.atkPct)}%`;
   const spawn = r => {
     const when = r.first < 0 ? `성 체력 ${r.basePct}% 이하 후 ${sec(-r.first)}` : r.basePct < 100 ? `성 체력 ${r.basePct}% 이하` : r.first ? sec(r.first) : "시작";
     const again = r.count === 1 ? "" : r.rmin === r.rmax ? ` · ${sec(r.rmin)}마다` : ` · ${sec(r.rmin)}~${sec(r.rmax)}마다`;
@@ -149,7 +149,7 @@ function paint(root, idx, mid, m, s, byId) {
             <td class="en-name"><a href="#/enemy/${r.eid}">${enemyIcon(r.e, "sm")}<span>${esc(r.e?.name ?? `적 #${r.eid}`)}${r.boss ? `<em>보스</em>` : ""}${r.isBase ? `<em>성</em>` : ""}${r.first >= LATE_F ? `<em class="late-tag">${Math.round(r.first / 1800)}분 뒤 등장</em>` : ""}</span></a>
               ${r.e?.traits.length ? `<span class="trs">${r.e.traits.map(t => `<span class="tr mini" style="--c:var(--tr-${t})">${t}</span>`).join("")}</span>` : ""}</td>
             <td>${pctText(r)}</td><td>${num(r.hp)}</td><td>${num(r.atk)}</td><td>${r.dps == null ? "-" : num(r.dps)}</td>
-            <td>${r.e ? r.e.range + (r.e.ld ? `<small> (${Math.min(r.e.ld[0], r.e.ld[0] + r.e.ld[1])}~${Math.max(r.e.ld[0], r.e.ld[0] + r.e.ld[1])})</small>` : "") : "-"}</td>
+            <td>${r.e ? r.e.range + (r.e.ld ? `<br><small>(${Math.min(r.e.ld[0], r.e.ld[0] + r.e.ld[1])}~${Math.max(r.e.ld[0], r.e.ld[0] + r.e.ld[1])})</small>` : "") : "-"}</td>
             ${r.first >= LATE_F ? `<td class="skip" title="오래 기다려야 나오는 적이라 사거리 비교에서 뺐어요">제외</td>` : `<td class="outr" data-r="${r.e?.range ?? 0}">-</td>`}
             <td>${r.count === 0 ? "무한" : r.count}</td><td class="spawn">${spawn(r)}</td></tr>`).join("")}
           </tbody></table></div>

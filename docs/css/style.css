@@ -220,9 +220,11 @@ dialog.choose small{color:var(--muted)}
 .star-seg small{opacity:.7;margin-left:2px}
 .table-wrap{overflow-x:auto}
 .en-table{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}
-.en-table th{background:var(--chip);font-weight:700;padding:6px 8px;text-align:right;white-space:nowrap}
-.en-table th:first-child,.en-table td:first-child{text-align:left}
-.en-table td{padding:6px 8px;border-top:1px solid var(--line);text-align:right;white-space:nowrap}
+.en-table th{background:var(--chip);font-weight:700;padding:6px 6px;text-align:right;white-space:nowrap}
+.en-table th:first-child,.en-table td:first-child,.en-table th:last-child{text-align:left}
+/* 적 이름·출현 칸은 줄바꿈해서 표가 패널 폭 안에 들어오게 */
+.en-table td.en-name{white-space:normal;min-width:118px}
+.en-table td{padding:6px 6px;border-top:1px solid var(--line);text-align:right;white-space:nowrap}
 .en-table td small{color:var(--muted);font-size:11.5px}
 .en-table tr.boss td{background:color-mix(in srgb,var(--accent) 8%,transparent)}
 .en-name a{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--ink);font-weight:600}
@@ -232,8 +234,8 @@ dialog.choose small{color:var(--muted)}
 .en-table td.outr.none{color:var(--muted);font-weight:400}
 .en-table tr.late td{opacity:.6}
 .en-table td.skip{color:var(--muted);font-size:12px}
-.en-name em.late-tag{color:var(--muted)}
-.en-table td.spawn{font-size:12.5px;color:var(--muted);text-align:left;white-space:normal;min-width:150px}
+.en-name em.late-tag{color:var(--muted);display:block;margin:2px 0 0}
+.en-table td.spawn{font-size:12.5px;color:var(--muted);text-align:left;white-space:normal;min-width:110px}
 .rewards{display:flex;flex-direction:column;gap:6px}
 .reward{display:flex;align-items:center;gap:8px;font-size:14px}
 .reward .item-ic{width:32px;height:32px}
