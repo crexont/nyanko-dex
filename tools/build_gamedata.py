@@ -324,8 +324,9 @@ def main(argv: list[str] | None = None) -> None:
         for f, name in enumerate(names[:4]):
             if not name or f >= len(stat_rows) or DUMMY_NAME.fullmatch(name):
                 break
-            # 3진·4진 진화가 없는 캐릭은 데이터에 앞 단계 이름이 한 번 더 들어 있다 → 가짜 단계라 뺀다
-            if f >= 2 and ub[21 + f] <= 0 and name == forms[-1]["name"]:
+            # 3진·4진 진화가 없는 캐릭(unitbuy 23·24열이 0)은 데이터에 가짜 단계 이름이 들어 있다 → 뺀다.
+            # 대부분 앞 단계 이름과 같지만, 100만불 고양이(#635 "1억불의 고양이")처럼 살짝 다른 것도 있다
+            if f >= 2 and ub[21 + f] <= 0:
                 break
             row = stat_rows[f]
             traits = [t for c, t in TRAIT_COLS.items() if len(row) > c and row[c].strip() == "1"]
