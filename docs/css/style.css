@@ -306,7 +306,7 @@ dialog.choose small{color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--chip-on);color:var(--chip-on-ink);font-weight:700}
 .stat-table div.up b{color:var(--accent)}
 
-/* ---- 나무위키식 스탯 블록 ---- */
+/* ---- 레벨별 스탯 블록 ---- */
 .nm{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
 .nm>*{min-width:0}
 .nm-box.wide{grid-column:1/-1}
