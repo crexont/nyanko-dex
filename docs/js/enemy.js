@@ -21,7 +21,7 @@ const f32 = Math.fround;
 export const dbEnemyUrl = id => `https://battlecats-db.com/enemy/${String(id + 2).padStart(3, "0")}.html`;
 // 아이콘이 게임 데이터에 없는 적(간판 아가씨 등)은 이름 첫 글자로 자리를 채운다
 export const enemyIcon = (e, cls = "") => e?.icon
-  ? `<img class="eicon ${cls}" src="icons/enemy/${e.id}.png" alt="" loading="lazy">`
+  ? `<img class="eicon ${cls}" src="icons/enemy/${e.id}.${e.icon === 1 ? "png" : e.icon}" alt="" loading="lazy">`
   : `<span class="eicon ph ${cls}" aria-hidden="true">${esc((e?.name || "?").replace(/^이름 없는 적 /, "")[0])}</span>`;
 
 // 배율 적용 (BCU Entity / AtkModelEntity): 체력 = trunc(기본 × 배율), 공격력 = round(기본 × 배율). 배율은 float

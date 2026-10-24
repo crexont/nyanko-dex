@@ -148,10 +148,10 @@ function paint(root, idx, mid, m, s, byId) {
           ${rows.map(r => `<tr class="${r.boss ? "boss" : ""}${r.first >= LATE_F ? " late" : ""}">
             <td class="en-name"><a href="#/enemy/${r.eid}">${enemyIcon(r.e, "sm")}<span>${esc(r.e?.name ?? `적 #${r.eid}`)}${r.boss ? `<em>보스</em>` : ""}${r.isBase ? `<em>성</em>` : ""}${r.first >= LATE_F ? `<em class="late-tag">${Math.round(r.first / 1800)}분 뒤 등장</em>` : ""}</span></a>
               ${r.e?.traits.length ? `<span class="trs">${r.e.traits.map(t => `<span class="tr mini" style="--c:var(--tr-${t})">${t}</span>`).join("")}</span>` : ""}</td>
-            <td>${pctText(r)}</td><td>${num(r.hp)}</td><td>${num(r.atk)}</td><td>${r.dps == null ? "-" : num(r.dps)}</td>
-            <td>${r.e ? r.e.range + (r.e.ld ? `<br><small>(${Math.min(r.e.ld[0], r.e.ld[0] + r.e.ld[1])}~${Math.max(r.e.ld[0], r.e.ld[0] + r.e.ld[1])})</small>` : "") : "-"}</td>
-            ${r.first >= LATE_F ? `<td class="skip" title="오래 기다려야 나오는 적이라 사거리 비교에서 뺐어요">제외</td>` : `<td class="outr" data-r="${r.e?.range ?? 0}">-</td>`}
-            <td>${r.count === 0 ? "무한" : r.count}</td><td class="spawn">${spawn(r)}</td></tr>`).join("")}
+            <td data-l="배율">${pctText(r)}</td><td data-l="체력">${num(r.hp)}</td><td data-l="공격력">${num(r.atk)}</td><td data-l="DPS">${r.dps == null ? "-" : num(r.dps)}</td>
+            <td data-l="사거리">${r.e ? r.e.range + (r.e.ld ? `<br><small>(${Math.min(r.e.ld[0], r.e.ld[0] + r.e.ld[1])}~${Math.max(r.e.ld[0], r.e.ld[0] + r.e.ld[1])})</small>` : "") : "-"}</td>
+            ${r.first >= LATE_F ? `<td class="skip" data-l="아웃레인지" title="오래 기다려야 나오는 적이라 사거리 비교에서 뺐어요">제외</td>` : `<td class="outr" data-l="아웃레인지" data-r="${r.e?.range ?? 0}">-</td>`}
+            <td data-l="수">${r.count === 0 ? "무한" : r.count}</td><td class="spawn" data-l="출현">${spawn(r)}</td></tr>`).join("")}
           </tbody></table></div>
           <p class="note">배율은 ${m.stars.length > 1 ? `★${st.star + 1}(${starPct}%)` : "기본"} 기준이에요. 아웃레인지는 내 도감 보유 캐릭(지금 진화 단계) 중 그 적보다 사거리가 긴 캐릭 수예요.${hasLate ? " \"N분 뒤 등장\" 적(간판 아가씨 등)은 스테이지를 오래 끌 때만 나와서 사거리 비교·아웃레인지·속성 대응에서 뺐어요." : ""} 적 이름을 누르면 능력까지 볼 수 있어요.</p>
         </div>

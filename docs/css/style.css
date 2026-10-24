@@ -218,7 +218,8 @@ dialog.choose small{color:var(--muted)}
 .stage-row .ens{display:flex;gap:2px;flex-wrap:wrap;justify-content:flex-end;max-width:45%}
 .star-seg{margin:0 0 14px}
 .star-seg small{opacity:.7;margin-left:2px}
-.table-wrap{overflow-x:auto}
+.table-wrap{overflow-x:auto;container-type:inline-size}
+
 .en-table{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}
 .en-table th{background:var(--chip);font-weight:700;padding:6px 6px;text-align:right;white-space:nowrap}
 .en-table th:first-child,.en-table td:first-child,.en-table th:last-child{text-align:left}
@@ -236,6 +237,18 @@ dialog.choose small{color:var(--muted)}
 .en-table td.skip{color:var(--muted);font-size:12px}
 .en-name em.late-tag{color:var(--muted);display:block;margin:2px 0 0}
 .en-table td.spawn{font-size:12.5px;color:var(--muted);text-align:left;white-space:normal;min-width:110px}
+/* 출현 적 표: 칸이 다 안 들어가는 좁은 폭에서는 적마다 카드처럼 (이름 한 줄 + 수치 칸 + 출현 조건). 원래 표 규칙보다 뒤에 둬야 덮어쓴다 */
+@container (max-width:660px){
+  .en-table thead{display:none}
+  .en-table,.en-table tbody{display:block}
+  .en-table tr{display:grid;grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:6px 8px;padding:10px 6px;border-top:1px solid var(--line)}
+  .en-table tr.boss{background:color-mix(in srgb,var(--accent) 8%,transparent)}
+  .en-table tr.boss td{background:none}
+  .en-table td{border:0;padding:0;text-align:left;white-space:normal}
+  .en-table td.en-name,.en-table td.spawn{grid-column:1/-1}
+  .en-table td[data-l]::before{content:attr(data-l);display:block;font-size:11px;color:var(--muted);font-weight:400}
+  .en-table td.spawn::before{display:inline;margin-right:6px}
+}
 .rewards{display:flex;flex-direction:column;gap:6px}
 .reward{display:flex;align-items:center;gap:8px;font-size:14px}
 .reward .item-ic{width:32px;height:32px}

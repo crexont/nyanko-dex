@@ -17,6 +17,9 @@ import shutil
 
 from build_gamedata import DEFAULT_FILES, SITE, IconPacks, anim_len, game_data_dir, read
 
+# 게임 데이터에 없는 적 아이콘 (나무위키 등에서 받아 둔 것): 간판 아가씨(#21) — 나무위키 "냥코 대전쟁 적 023"
+EXTRA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "extra_icons", "enemy")
+
 # 속성 열 → 이름 (BCU DataEnemy 의 TRAIT_*)
 TRAIT_COLS = [(10, "빨강"), (13, "떠있음"), (14, "검정"), (15, "메탈"), (16, "무속성"), (17, "천사"),
               (18, "에이리언"), (19, "좀비"), (72, "고대종"), (93, "악마"), (48, "마녀"), (71, "사도"),
@@ -135,6 +138,16 @@ def main(argv: list[str] | None = None) -> None:
                 fp.write(png)
             e["icon"] = 1
             n_icon += 1
+        else:
+            # 게임 팩에 아이콘이 없는 적(간판 아가씨 등)은 tools/extra_icons/enemy/<id>.<png|webp> 를 쓴다.
+            # icon 값은 확장자 (png면 1)
+            for ext in ("png", "webp"):
+                extra = os.path.join(EXTRA_DIR, f"{eid}.{ext}")
+                if os.path.exists(extra):
+                    shutil.copyfile(extra, os.path.join(icon_dir, f"{eid}.{ext}"))
+                    e["icon"] = 1 if ext == "png" else ext
+                    n_icon += 1
+                    break
         enemies.append(e)
 
     with open(os.path.join(SITE, "data", "enemies.json"), "w", encoding="utf-8") as f:

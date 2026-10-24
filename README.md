@@ -160,7 +160,7 @@ Copyright (C) 2026 crexont
 - [BCData](https://git.battlecatsmodding.org/fieryhenry/BCData): 캐릭터 이름·스탯·레어도·본능 데이터
 - [Battle Cats Ultimate](https://github.com/battlecatsultimate/BCU_java_util_common): 스탯·본능·DPS 계산, 적·스테이지 데이터 해석 방식 참고
 - [tbcml](https://github.com/fieryhenry/tbcml): 적·스테이지 파일 형식 참고
-- [냥코대전쟁 DB](https://battlecats-db.com/), [나무위키](https://namu.wiki/w/%EB%83%A5%EC%BD%94%20%EB%8C%80%EC%A0%84%EC%9F%81): 계산 결과 대조 (데이터를 가져오지는 않습니다)
+- [냥코대전쟁 DB](https://battlecats-db.com/), [나무위키](https://namu.wiki/w/%EB%83%A5%EC%BD%94%20%EB%8C%80%EC%A0%84%EC%9F%81): 계산 결과 대조. 게임 데이터에 그림이 없는 적 "간판 아가씨" 아이콘만 나무위키 이미지를 씁니다.
 - [7-Zip](https://www.7-zip.org): 가상 디스크 읽기. 배포판에 `7z.exe`, `7z.dll`을 동봉하며 라이선스는 `7z/License.txt`를 따릅니다.
 
 <sub>냥코위키는 수익을 목적으로 하지 않는 비영리·비공식 팬 사이트입니다. 냥코대전쟁의 캐릭터·이름·이미지 등 게임 리소스의 권리는 © PONOS Corporation에 있습니다.</sub>
