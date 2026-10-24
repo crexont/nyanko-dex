@@ -297,7 +297,7 @@ def main(argv: list[str] | None = None) -> None:
     # 적 → 등장 스테이지 (적 상세 페이지용): {적 ID: [[맵 번호, [스테이지 번호, ...]], ...]}
     appear: dict[int, dict[int, list[int]]] = {}
     for f in os.listdir(out_dir):
-        if f.endswith(".json") and f not in ("index.json", "enemy_stages.json"):
+        if f.endswith(".json") and f not in ("index.json", "enemy_stages.json", "cat_drops.json"):
             for mid, m in json.load(open(os.path.join(out_dir, f), encoding="utf-8")).items():
                 for st in m["stages"]:
                     for e in st["en"]:
@@ -307,9 +307,26 @@ def main(argv: list[str] | None = None) -> None:
     with open(os.path.join(out_dir, "enemy_stages.json"), "w", encoding="utf-8") as f:
         json.dump({eid: sorted(maps.items()) for eid, maps in appear.items()}, f, separators=(",", ":"))
 
+    # 드롭 보상 번호 1000 이상 = 캐릭 (drop_chara.csv: 드롭 번호 → 캐릭 ID). 캐릭 → 드롭 스테이지 목록도 만든다
+    drop_chara = {}
+    for l in read(os.path.join(D, "drop_chara.csv"))[1:]:
+        r = [x.strip() for x in l.split(",")]
+        if len(r) >= 3 and r[0].lstrip("-").isdigit() and int(r[0]) >= 0:
+            drop_chara[int(r[0])] = int(r[2])
+    cat_drops: dict[int, list] = {}
+    for f in os.listdir(out_dir):
+        if f.endswith(".json") and f not in ("index.json", "enemy_stages.json", "cat_drops.json"):
+            for mid, m in json.load(open(os.path.join(out_dir, f), encoding="utf-8")).items():
+                for st in m["stages"]:
+                    for d in st.get("drop", []):
+                        if d[0] >= 1000 and d[0] in drop_chara:
+                            cat_drops.setdefault(drop_chara[d[0]], []).append([int(mid), st["i"], d[2], st.get("dropAll", 0), st["n"]])
+    with open(os.path.join(out_dir, "cat_drops.json"), "w", encoding="utf-8") as f:
+        json.dump({k: sorted(v) for k, v in cat_drops.items()}, f, separators=(",", ":"))
+
     items = {i: item_names[i] for i in sorted(used_items) if i < len(item_names)}
     with open(os.path.join(out_dir, "index.json"), "w", encoding="utf-8") as f:
-        json.dump({"categories": index, "items": items}, f, ensure_ascii=False, separators=(",", ":"))
+        json.dump({"categories": index, "items": items, "chara": drop_chara}, f, ensure_ascii=False, separators=(",", ":"))
 
     # 드롭 아이템 아이콘 (build_gamedata 가 만든 docs/icons/items 에 없는 것만 추가)
     packs = IconPacks(args.files)

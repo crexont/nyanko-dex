@@ -21,8 +21,8 @@ const itemName = (idx, id) => idx.items[id] ?? GD.items?.[id] ?? `아이템 ${id
 // 드롭 보상 한 칸: 아이템(번호 < 1000) 또는 캐릭(1000 이상: 번호 − 1000 / 10000 이상: 번호 − 10000)
 function rewardHtml(idx, [id, amount, chance], all) {
   let icon = "", name;
-  if (id >= 1000) {
-    const c = BYID.get(id >= 10000 ? id - 10000 : id - 1000);
+  if (id >= 1000) {  // 캐릭 드롭: 드롭 번호 → 캐릭 ID (drop_chara.csv)
+    const c = BYID.get(idx.chara?.[id]);
     name = c ? c.forms[0].name : `캐릭 #${id}`;
     icon = c?.forms[0].icon ? `<img class="item-ic" src="icons/${c.id}_0.png" alt="">` : "";
     if (c) name = `<a href="#/cat/${c.id}">${esc(name)}</a>`;

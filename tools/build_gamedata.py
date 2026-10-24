@@ -7,6 +7,7 @@
 
 출력: docs/gamedata.js (window.GAMEDATA), docs/icons/<id>_<form>.png, docs/icons/items/<아이템 ID>.png  (GitHub Pages 사이트용, 커밋한다)
 사용: python tools/extract_vhdx.py --with-packs → python tools/build_gamedata.py [--version 15.6.0]
+      → build_enemies.py → build_stages.py (docs/icons 를 새로 만들어서 적·드롭 아이콘도 다시 뽑아야 한다)
 """
 from __future__ import annotations
 
@@ -220,6 +221,12 @@ def unit_form(row: list[str]) -> dict:
     return out
 
 
+def xp_index(curves: list[list[int]], costs: list[int]) -> int:
+    if costs not in curves:
+        curves.append(costs)
+    return curves.index(costs)
+
+
 def evolve(ub: list[int], xp_col: int, items_col: int, used: set[int]) -> dict | None:
     """진화 재료: {"xp", "items": [[아이템 ID, 개수], ...]}. 이름은 gamedata.js의 items에서 찾는다."""
     items = [[ub[items_col + i * 2], ub[items_col + i * 2 + 1]] for i in range(5)]
@@ -285,6 +292,14 @@ def main(argv: list[str] | None = None) -> None:
             n = int(r[1])
             orb_slots[int(r[0])] = [int(x) for x in r[2:2 + n]] if len(r) >= 2 + n else [0] * n
     curves = [[int(x) for x in l.split(",") if x.strip()] for l in read(os.path.join(D, "unitlevel.csv"))]
+    # 레벨업 경험치 표 (unitbuy 2~11열, 같은 표끼리 묶어 gamedata.xpCurves 에 한 번만 둔다)
+    xp_curves: list[list[int]] = []
+    # 레어 뽑기 세트에 들어 있는 캐릭 (GatyaDataSetR1.csv: 한 줄 = 뽑기 세트 하나의 캐릭 목록)
+    rare_gacha = {int(x) for l in read(os.path.join(D, "GatyaDataSetR1.csv"))
+                  for x in l.split(",") if x.strip().lstrip("-").isdigit() and int(x) >= 0}
+    # 세계편 스테이지 이름 (기본 캐릭 해금 조건용). 이름 파일은 거꾸로 적혀 있다 (build_stages.main_story_name)
+    eoc_names = [l.split("|")[0].strip() for l in read(os.path.join(R, "StageName0_ko.csv"))]
+    eoc_name = lambda s: eoc_names[s if s >= 46 else 45 - s] if 0 <= (s if s >= 46 else 45 - s) < len(eoc_names) else f"{s + 1}번째 스테이지"
     units: dict[int, dict] = {}
 
     packs = IconPacks(args.files)
@@ -335,6 +350,13 @@ def main(argv: list[str] | None = None) -> None:
             "tfCost": evolve(ub, 27, 28, used_items) if len(forms) >= 3 and ub[23] > 0 else None,
             "ffCost": evolve(ub, 38, 39, used_items) if len(forms) >= 4 and ub[24] > 0 else None,
             "talents": talents.get(cid, []),
+            # 레벨업: 경험치 표 번호, 캣츠아이가 필요해지는 레벨(이 레벨 초과부터, 없으면 -1)
+            "xpc": xp_index(xp_curves, ub[2:12]),
+            "eye": ub[49] if ub[49] > 0 and (ub[50] or 0) > ub[49] else -1,
+            # 얻는 방법: src(unitbuy 12열: 0 = 뽑기 아님, 1 = 냥코 뽑기, 2 = 뽑기), 레어 뽑기 세트 포함 여부,
+            # 기본 캐릭은 세계편 해금 스테이지와 구매 경험치. 스테이지 드롭은 build_stages.py 의 cat_drops.json
+            "get": {"src": ub[12], **({"rare": 1} if cid in rare_gacha else {}),
+                    **({"unlock": [eoc_name(ub[0] - 1) if ub[0] > 0 else None, ub[1]]} if ub[13] == 0 else {})},
         })
         units[cid] = {
             "desc": [" ".join(x.strip() for x in expl_rows[f][1:] if x.strip()) for f in range(len(forms))],
@@ -352,7 +374,7 @@ def main(argv: list[str] | None = None) -> None:
            # 본능옥 대상 속성 (equipment_attribute.csv 열 순서. 9·10은 쓰이지 않음)
            "orbs": {"list": orb_list, "names": orb_names, "slots": orb_slots,
                     "traits": ["빨강", "떠있음", "검정", "메탈", "천사", "에이리언", "좀비", "고대종", "무속성", "마녀", "사도", "악마"]},
-           "cats": cats}
+           "xpCurves": xp_curves, "cats": cats}
     with open(os.path.join(SITE, "gamedata.js"), "w", encoding="utf-8") as f:
         f.write("window.GAMEDATA = ")
         json.dump(out, f, ensure_ascii=False, separators=(",", ":"))

@@ -151,6 +151,27 @@ export const itemIcon = (id, name = itemName(id)) =>
 export const have = id => store.data?.inv?.items?.[id] ?? 0;
 export const haveXp = () => store.data?.inv?.currency?.xp ?? 0;
 
+// ---- 레벨업 비용 ----
+// 레벨 L이 되는 데 드는 경험치 = 표[(L−1) % 10] × 배수. 배수는 (L−1)을 10으로 나눈 몫마다 1·2·3·3.5·4배
+// (unitbuy 2~11열, 공개된 레벨별 경험치 표와 대조). 51레벨 이상(4.5배)은 공개 자료로 확인하지 못한 추정값.
+const XP_MULT = [1, 2, 3, 3.5, 4, 4.5];
+// 캣츠아이: 캐릭의 캣츠아이 시작 레벨(eye) 초과부터 레벨마다 필요. 45까지 1개, 46~50 2개, 51~55 다크 1개, 56~60 다크 2개
+const EYE_BY_RARITY = [null, 50, 51, 52, 53, 54], DARK_EYE = 58;
+export function levelCost(c, from, to) {
+  const curve = GD.xpCurves?.[c.xpc] || [];
+  let xp = 0, eye = 0, dark = 0;
+  for (let L = from + 1; L <= to; L++) {
+    xp += Math.round((curve[(L - 1) % 10] || 0) * (XP_MULT[Math.floor((L - 1) / 10)] ?? 4.5));
+    if (c.eye > 0 && L > c.eye) {
+      if (L <= 45) eye += 1; else if (L <= 50) eye += 2; else if (L <= 55) dark += 1; else dark += 2;
+    }
+  }
+  const items = [];
+  if (eye && EYE_BY_RARITY[c.rarity] != null) items.push([EYE_BY_RARITY[c.rarity], eye]);
+  if (dark) items.push([DARK_EYE, dark]);
+  return { xp, items, est: to > 50 };
+}
+
 // 다음 진화(3진 "tf" / 4진 "ff") 판정. 해당 진화가 없거나 아직 그 앞 단계가 아니면 null.
 // { levelOk, known(재화 정보 있음), ok(지금 바로 가능), short:[[이름, 부족분]], cost, stageOnly(열매 진화가 아님) }
 export function evoCheck(c, o, step) {

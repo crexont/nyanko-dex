@@ -1,5 +1,5 @@
 // 캐릭터 상세 — 진화 단계별 스탯·능력·본능·진화 재료 + 내 보유 상태
-import { GD, BYID, FORM, esc, clamp, icon, rarBadge, traitChips, view, store, itemName, itemIcon, have, haveXp, ORB_GRADE } from "./common.js";
+import { GD, BYID, FORM, esc, clamp, icon, rarBadge, traitChips, view, store, itemName, itemIcon, have, haveXp, ORB_GRADE, levelCost } from "./common.js";
 import { openEdit } from "./edit.js";
 import { addToPlan, removeFromPlan, inPlan } from "./plan.js";
 
@@ -9,15 +9,20 @@ const loadUnits = () => unitsPromise ??= fetch("data/units.json").then(r => {
   return r.json();
 });
 
-const state = { id: null, form: null, level: null, plus: null, tal: null, orbs: null };
+const state = { id: null, form: null, level: null, plus: null, tal: null, orbs: null, to: null };
+let dropsPromise;
+const loadDrops = () => dropsPromise ??= Promise.all([
+  fetch("data/stages/cat_drops.json").then(r => r.json()),
+  fetch("data/stages/index.json").then(r => r.json()),
+]);
 
 export function renderCat(root, id) {
   const c = BYID.get(id);
   if (!c) { root.innerHTML = `<div class="empty">캐릭터를 찾을 수 없어요. <a href="#/cats">캐릭터 목록으로</a></div>`; return; }
-  if (state.id !== id) Object.assign(state, { id, form: null, level: null, plus: null, tal: null, orbs: null });
+  if (state.id !== id) Object.assign(state, { id, form: null, level: null, plus: null, tal: null, orbs: null, to: null });
   root.innerHTML = `<div class="empty">불러오는 중…</div>`;
   const draw = () => loadUnits().then(units => paint(root, c, units[id]))
-    .catch(() => { root.innerHTML = `<div class="empty">캐릭터 데이터를 불러오지 못했어요. 새로고침해 주세요.</div>`; });
+    .catch(e => { console.error(e); root.innerHTML = `<div class="empty">캐릭터 데이터를 불러오지 못했어요. 새로고침해 주세요.</div>`; });
   draw();
   return draw;
 }
@@ -386,6 +391,8 @@ function paint(root, c, u) {
         <div class="panel mine"><h2>내 보유 상태</h2>${mine}</div>
         ${c.forms.length >= 3 ? evo("3진 진화", u.tf, c.tfLevel, "tf") : ""}
         ${c.forms.length >= 4 ? evo("4진 진화", u.ff, c.ffLevel, "ff") : ""}
+        ${levelPanel(c, o)}
+        <div class="panel" id="getPanel"><h2>얻는 방법</h2><p class="note" style="margin:0">불러오는 중…</p></div>
         <div class="panel"><h2>기본 정보</h2><dl class="kv">
           <dt>레어도</dt><dd>${rarBadge(c)}</dd>
           <dt>최대 레벨</dt><dd>${c.maxLevel}${c.maxPlus ? ` + ${c.maxPlus}` : ""}</dd>
@@ -419,4 +426,44 @@ function paint(root, c, u) {
   root.querySelector("#sLv").onchange = onLv;
   root.querySelector("#sPlus")?.addEventListener("change", onLv);
   root.querySelector("[data-edit]").onclick = () => openEdit(c.id);
+  const toInp = root.querySelector("#lvTo");
+  if (toInp) {
+    toInp.onchange = () => { state.to = clamp(parseInt(toInp.value) || 1, 1, c.maxLevel); paint(root, c, u); root.querySelector("#lvTo").focus(); };
+    root.querySelector("[data-lvplan]")?.addEventListener("click", () => addToPlan(c.id, "lv", state.to ?? +toInp.value));
+  }
+  paintGet(root, c);
+}
+
+// 레벨업 비용: 지금 레벨(미보유면 1)에서 목표 레벨까지 경험치·캣츠아이
+function levelPanel(c, o) {
+  if (!GD.xpCurves) return "";
+  const from = o ? o.level : 1;
+  const to = clamp(state.to ?? Math.min(Math.max(from + 1, 30), c.maxLevel), 1, c.maxLevel);
+  const cost = levelCost(c, from, Math.max(from, to));
+  return `<div class="panel"><h2>레벨업 비용 <span class="ctl">Lv${from} → <input type="number" id="lvTo" min="1" max="${c.maxLevel}" value="${to}"></span></h2>
+    ${from >= c.maxLevel ? `<p class="note" style="margin:0">이미 최대 레벨(Lv${c.maxLevel})이에요.</p>`
+      : to <= from ? `<p class="note" style="margin:0">목표 레벨을 Lv${from}보다 높게 입력하세요.</p>` : `<dl class="kv">
+      <dt>경험치</dt><dd>${num(cost.xp)} XP${store.data?.inv ? ` <span class="${haveXp() >= cost.xp ? "own-ok" : "own-lack"}">(보유 ${num(haveXp())})</span>` : ""}${cost.est ? ` <span class="est" title="51레벨 이상 경험치는 공개 자료로 확인하지 못한 추정값">추정</span>` : ""}</dd>
+      ${cost.items.length ? `<dt>캣츠아이</dt><dd>${cost.items.map(([id, n]) => `<span class="item-line">${itemIcon(id)}${esc(itemName(id))} ×${n}${store.data?.inv ? ` <span class="${have(id) >= n ? "own-ok" : "own-lack"}">(보유 ${have(id)})</span>` : ""}</span>`).join("")}</dd>` : ""}
+    </dl><div style="margin-top:12px"><button class="btn" data-lvplan>육성 계획에 담기</button></div>`}
+    ${o ? "" : `<p class="note">미보유라 1레벨부터 계산했어요.</p>`}</div>`;
+}
+
+// 얻는 방법: 기본 캐릭 해금·뽑기·스테이지 드롭 (게임 데이터에 있는 것만)
+function paintGet(root, c) {
+  const g = c.get || {}, lines = [];
+  if (g.unlock) lines.push(c.id === 0 ? "처음부터 보유" : `세계편 1장 「${esc(g.unlock[0] ?? "?")}」 클리어 후 ${g.unlock[1] ? `경험치 ${num(g.unlock[1])}로 구매` : "무료로 얻음"}`);
+  if (g.src === 1) lines.push("냥코 뽑기");
+  if (g.src === 2) lines.push(g.rare ? `레어 뽑기${c.rarity === 5 ? " (레전드레어)" : ""}` : "뽑기 (이벤트·콜라보 뽑기 등)");
+  loadDrops().then(([drops, idx]) => {
+    const box = root.querySelector("#getPanel"); if (!box) return;
+    const names = new Map(idx.categories.flatMap(cat => cat.maps.map(([mid, n]) => [mid, n])));
+    const list = (drops[c.id] || []).filter(([mid]) => names.has(mid));
+    box.innerHTML = `<h2>얻는 방법</h2>
+      ${lines.length ? `<ul class="get-list">${lines.map(l => `<li>${l}</li>`).join("")}</ul>` : ""}
+      ${list.length ? `<h3 class="sum-title">스테이지 드롭</h3><ul class="get-list drops">${list.map(([mid, si, ch, all, sname]) =>
+        `<li><a href="#/stage/${mid}/${si}">${esc(names.get(mid))} · ${esc(sname)}</a><b>${all ? "확정" : ch != null ? `${ch}%` : ""}</b></li>`).join("")}</ul>` : ""}
+      ${!lines.length && !list.length ? `<p class="note" style="margin:0">이벤트·미션·콜라보 보상 등으로 얻는 캐릭이에요. 구체적인 입수처는 게임 데이터에 없어요.</p>`
+        : g.src ? `<p class="note">뽑기 이름(배너)은 서버에서 그때그때 받는 정보라 게임 데이터에 없어요.</p>` : ""}`;
+  }).catch(() => {});
 }

@@ -1,9 +1,9 @@
 // 육성 — 보유 재화·재료 + 진화 육성 계획 (필요 재료 합계·부족분)
-import { GD, BYID, FORM, esc, icon, store, view, itemName, itemIcon, have, haveXp, toast, orbInfo, ORB_GRADE } from "./common.js";
+import { GD, BYID, FORM, esc, icon, store, view, itemName, itemIcon, have, haveXp, toast, orbInfo, ORB_GRADE, levelCost, clamp } from "./common.js";
 
 const CURRENCY = [["xp", "경험치"], ["np", "NP"], ["catfood", "통조림"], ["normalTickets", "냥코 티켓"],
                   ["rareTickets", "레어 티켓"], ["platinumTickets", "플래티넘 티켓"], ["legendTickets", "레전드 티켓"]];
-const STEP = { tf: "3진", ff: "4진" };
+const STEP = { tf: "3진", ff: "4진", lv: "레벨" };
 
 // 보유 재료 묶음: Matatabi 그룹 9 = 수석, 나머지 = 개다래. 캐츠아이는 따로.
 function itemGroups() {
@@ -19,6 +19,12 @@ function itemGroups() {
 // 계획 하나의 비용·상태
 function planEntry(p) {
   const c = BYID.get(p.id); if (!c) return null;
+  if (p.step === "lv") {  // 목표 레벨까지 레벨업: 지금 레벨(미보유면 1)부터
+    const o = store.owned(p.id), from = o ? o.level : 1, done = !!o && o.level >= p.to;
+    return { p, c, o, fi: o ? Math.min(o.form, c.forms.length - 1) : 0, cost: done ? null : levelCost(c, from, p.to),
+             status: done ? "목표 달성" : o ? null : "미보유 (Lv1부터 계산)", cls: done ? "done" : "", done,
+             label: `Lv${from} → Lv${p.to}` };
+  }
   const o = store.owned(p.id), cost = p.step === "tf" ? c.tfCost : c.ffCost;
   const need = p.step === "tf" ? c.tfLevel : c.ffLevel, target = p.step === "tf" ? 2 : 3;
   let status, cls = "";
@@ -28,14 +34,14 @@ function planEntry(p) {
   else if (need > 0 && o.level < need) status = `Lv${need} 필요 (현재 ${o.level})`;
   else if (!cost) status = "스테이지 클리어로 진화";
   else status = null;  // 재료만 남음 → 합계로 판단
-  return { p, c, o, cost, status, cls, done: cls === "done" };
+  return { p, c, o, fi: target, cost, status, cls, done: cls === "done", label: STEP[p.step] };
 }
 
 export function renderPlan(root) {
   root.innerHTML = `
     <p class="crumb"><a href="#/">냥코위키</a><i>/</i><span>육성</span></p>
     <div class="page-head">
-      <div><h1>육성</h1><p>보유 재화·재료와 진화 계획. 진화하고 싶은 캐릭을 담으면 필요한 재료 합계와 부족분을 계산해요.</p></div>
+      <div><h1>육성</h1><p>보유 재화·재료와 육성 계획. 진화하거나 레벨을 올릴 캐릭을 담으면 필요한 경험치·재료·캣츠아이 합계와 부족분을 계산해요.</p></div>
       <div class="acts"><label class="btn primary">세이브 불러오기<input type="file" accept=".json,application/json" hidden data-import></label></div>
     </div>
     <p class="meta" id="pMeta"></p>
@@ -46,6 +52,12 @@ export function renderPlan(root) {
             <input type="search" id="pAdd" list="pAddList" placeholder="진화시킬 캐릭 이름 (3진·4진 이름으로 검색)">
             <datalist id="pAddList"></datalist>
             <button class="btn" id="pAddBtn">계획에 담기</button>
+          </div>
+          <div class="row" style="margin-bottom:12px">
+            <input type="search" id="pLv" list="pLvList" placeholder="레벨업할 캐릭 이름">
+            <datalist id="pLvList"></datalist>
+            <input type="number" id="pTo" min="2" max="60" placeholder="목표 Lv" style="width:96px">
+            <button class="btn" id="pLvBtn">레벨 목표 담기</button>
           </div>
           <div id="pList"></div>
           <div id="pSum"></div>
@@ -72,7 +84,23 @@ export function renderPlan(root) {
       if (c.ffLevel != null && c.forms[3] && form < 3) opts.set(`${c.forms[3].name} (4진)`, { id: c.id, step: "ff" });
     }
     root.querySelector("#pAddList").innerHTML = [...opts.keys()].map(k => `<option value="${esc(k)}">`).join("");
+    // 레벨업: 보유 캐릭은 지금 진화 단계 이름, 미보유는 마지막 단계 이름
+    lvOpts.clear();
+    for (const c of GD.cats) {
+      const o = store.owned(c.id), f = c.forms[o ? Math.min(o.form, c.forms.length - 1) : c.forms.length - 1];
+      lvOpts.set(`${f.name}${o ? ` (Lv${o.level})` : ""}`, c.id);
+    }
+    root.querySelector("#pLvList").innerHTML = [...lvOpts.keys()].map(k => `<option value="${esc(k)}">`).join("");
   };
+  const lvOpts = new Map();
+  const addLv = () => {
+    const inp = root.querySelector("#pLv"), id = lvOpts.get(inp.value.trim()), to = parseInt(root.querySelector("#pTo").value);
+    if (id == null) return toast("목록에서 캐릭을 골라 주세요.");
+    if (!(to > 1)) return toast("목표 레벨을 입력해 주세요.");
+    addToPlan(id, "lv", to); inp.value = "";
+  };
+  root.querySelector("#pLvBtn").onclick = addLv;
+  root.querySelector("#pTo").onkeydown = e => { if (e.key === "Enter") addLv(); };
   const add = () => {
     const inp = root.querySelector("#pAdd"), v = opts.get(inp.value.trim());
     if (!v) return toast("목록에서 캐릭을 골라 주세요.");
@@ -102,13 +130,21 @@ export function renderPlan(root) {
   return refresh;
 }
 
-export function addToPlan(id, step) {
+export function addToPlan(id, step, to) {
   const d = store.ensure();
   d.plan ??= [];
+  const c = BYID.get(id);
+  if (step === "lv") {  // 레벨 목표는 캐릭마다 하나: 이미 있으면 목표만 바꾼다
+    to = clamp(to | 0, 2, c.maxLevel);
+    const cur = d.plan.find(p => p.id === id && p.step === "lv");
+    if (cur) cur.to = to; else d.plan.push({ id, step, to });
+    store.persist();
+    return toast(`${c.forms[c.forms.length - 1].name} Lv${to}까지 레벨업을 육성 계획에 담았어요.`);
+  }
   if (d.plan.some(p => p.id === id && p.step === step)) return toast("이미 계획에 있어요.");
   d.plan.push({ id, step });
   store.persist();
-  toast(`${BYID.get(id).forms[step === "tf" ? 2 : 3].name} ${STEP[step]}을 육성 계획에 담았어요.`);
+  toast(`${c.forms[step === "tf" ? 2 : 3].name} ${STEP[step]}을 육성 계획에 담았어요.`);
 }
 export function removeFromPlan(id, step) {
   const d = store.ensure();
@@ -144,9 +180,9 @@ function renderPlanParts() {
   const entries = (store.data?.plan || []).map(planEntry).map((e, i) => e && { ...e, i }).filter(Boolean);
   list.innerHTML = entries.length ? `<div class="plan-list">${entries.map(e => `
       <div class="plan-row ${e.cls}">
-        <a href="#/cat/${e.c.id}">${icon(e.c, e.p.step === "tf" ? 2 : 3)}</a>
-        <div class="body"><a class="name" href="#/cat/${e.c.id}">${esc(e.c.forms[e.p.step === "tf" ? 2 : 3].name)}</a>
-          <div class="sub"><span class="form">${STEP[e.p.step]}</span>${e.status ? `<span>${esc(e.status)}</span>` : costText(e.cost)}</div></div>
+        <a href="#/cat/${e.c.id}">${icon(e.c, e.fi)}</a>
+        <div class="body"><a class="name" href="#/cat/${e.c.id}">${esc(e.c.forms[e.fi].name)}</a>
+          <div class="sub"><span class="form">${esc(e.label)}</span>${e.status ? `<span>${esc(e.status)}</span>` : ""}${!e.done && e.cost && (e.p.step === "lv" || !e.status) ? costText(e.cost) : ""}${e.cost?.est ? `<span class="est" title="51레벨 이상 경험치는 추정값">추정 포함</span>` : ""}</div></div>
         <button class="mini" data-rm="${e.i}" title="계획에서 빼기">빼기</button>
       </div>`).join("")}</div>`
     : `<p class="note" style="margin:0">아직 담은 캐릭이 없어요. 위에서 검색하거나 캐릭터 상세의 [육성 계획에 담기]를 누르세요.</p>`;
@@ -182,4 +218,4 @@ function renderPlanParts() {
   document.querySelectorAll("#pReady [data-plan]").forEach(b => b.onclick = () => { const [id, s] = b.dataset.plan.split(":"); addToPlan(+id, s); });
 }
 
-const costText = cost => cost ? `<span class="cost-ic"><b>${itemIcon(GD.currencyItems.xp, "경험치")}${cost.xp.toLocaleString()}</b>${cost.items.map(([id, n]) => `<b>${itemIcon(id)}×${n}</b>`).join("")}</span>` : "";
+const costText = cost => cost ? `<span class="cost-ic">${cost.xp ? `<b>${itemIcon(GD.currencyItems.xp, "경험치")}${cost.xp.toLocaleString()}</b>` : ""}${cost.items.map(([id, n]) => `<b>${itemIcon(id)}×${n}</b>`).join("")}</span>` : "";
